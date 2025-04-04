@@ -2,74 +2,66 @@ import streamlit as st
 import pandas as pd
 from prophet import Prophet
 import matplotlib.pyplot as plt
-from streamlit_chat import message
-from io import StringIO
 
-# App title
-st.set_page_config(page_title="GenAI Forecast Chatbot", layout="wide")
-st.title("📊 GenAI Forecasting with Chatbot 💬")
+def load_data():
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        return df
+    return None
 
-# File upload
-uploaded_file = st.file_uploader("Upload your Gen_AI.csv file", type="csv")
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.success("Data uploaded successfully!")
+def forecast_data(df, date_column, metric, periods, freq):
+    df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+    df_filtered = df.groupby(pd.Grouper(key=date_column, freq=freq))[metric].sum().reset_index()
+    df_filtered.columns = ['ds', 'y']
+    df_filtered = df_filtered[df_filtered['y'] > 0].dropna()
+    
+    if len(df_filtered) < 5:
+        st.error(f"Not enough data for forecasting {metric}.")
+        return None
+    
+    model = Prophet(seasonality_mode='multiplicative', yearly_seasonality=True)
+    model.fit(df_filtered)
+    future = model.make_future_dataframe(periods=periods, freq=freq)
+    forecast = model.predict(future)
+    return forecast
 
-    # Basic view
-    if st.checkbox("Show raw data"):
-        st.write(df.head())
-
-    # Date column selection
-    date_col = st.selectbox("Select the date column", df.columns)
-    value_col = st.selectbox("Select the value column (e.g., paid_amount)", df.columns)
-
-    # Prepare data for Prophet
-    forecast_df = df[[date_col, value_col]].rename(columns={date_col: "ds", value_col: "y"})
-    forecast_df['ds'] = pd.to_datetime(forecast_df['ds'])
-
-    # Forecasting horizon
-    periods_input = st.slider("Forecast how many days into the future?", 30, 365, 90)
-
-    # Run forecast
-    if st.button("Run Forecast"):
-        model = Prophet()
-        model.fit(forecast_df)
-        future = model.make_future_dataframe(periods=periods_input)
-        forecast = model.predict(future)
-
-        fig = model.plot(forecast)
-        st.pyplot(fig)
-
-        st.subheader("Forecasted Data")
-        st.write(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
-
-# --------------------------
-# Chatbot interface
-# --------------------------
-st.header("💬 Ask your ChatGPT-powered chatbot")
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state["messages"] = []
-
-# Show messages
-for msg in st.session_state.messages:
-    message(msg["content"], is_user=msg["is_user"])
-
-# Input
-user_input = st.text_input("You:", key="input")
-
-# Process
-if user_input:
-    st.session_state.messages.append({"content": user_input, "is_user": True})
-
-    # Simulated response (You can integrate OpenAI API here)
-    if "forecast" in user_input.lower():
-        reply = "The forecast uses Prophet model on your uploaded data."
-    elif "how many" in user_input.lower():
-        reply = f"Your dataset has {len(df)} rows."
-    else:
-        reply = "I’m a GenAI bot! Ask me anything about your forecast or data."
-
-    st.session_state.messages.append({"content": reply, "is_user": False})
-    message(reply, is_user=False)
+def main():
+    st.title("📊 GenAI Forecasting Chatbot")
+    df = load_data()
+    if df is None:
+        st.warning("Please upload a CSV file to proceed.")
+        return
+    
+    date_column = st.selectbox("Select Date Column", df.columns)
+    cost_column = st.selectbox("Select Cost Column", [col for col in df.columns if 'amount' in col.lower()])
+    analysis_type = st.selectbox("Select Analysis Type", [
+        "Forecast", "Cost Distribution", "Top 5 Diagnoses", "Monthly Trends"
+    ])
+    
+    if analysis_type == "Forecast":
+        timeframe = st.selectbox("Select Frequency", ['M', 'Q', 'Y'])
+        periods = st.number_input("Number of Future Periods", min_value=1, max_value=24, value=6)
+        if st.button("Run Forecast"):
+            forecast = forecast_data(df, date_column, cost_column, periods, timeframe)
+            if forecast is not None:
+                st.write("### Forecast Results")
+                st.line_chart(forecast[['ds', 'yhat']].set_index('ds'))
+    
+    elif analysis_type == "Cost Distribution":
+        group_by = st.selectbox("Group By", [col for col in df.columns if col != cost_column])
+        if st.button("Show Distribution"):
+            st.write(df.groupby(group_by)[cost_column].sum().reset_index())
+    
+    elif analysis_type == "Top 5 Diagnoses" and 'diagnosis' in df.columns:
+        if st.button("Show Diagnoses"):
+            st.write(df.groupby('diagnosis')[cost_column].sum().nlargest(5))
+    
+    elif analysis_type == "Monthly Trends":
+        if st.button("Show Trends"):
+            df[date_column] = pd.to_datetime(df[date_column])
+            trend = df.groupby(df[date_column].dt.to_period('M'))[cost_column].sum()
+            st.line_chart(trend)
+    
+if __name__ == "__main__":
+    main()
