@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 from io import BytesIO
-import openai
 
 st.set_page_config(page_title="Healthcare Forecast App", layout="wide")
 
@@ -23,7 +22,6 @@ age_band_col = next((col for col in df.columns if 'age' in col.lower() and 'band
 
 st.sidebar.title("Healthcare Forecast & Analysis")
 analysis_type = st.sidebar.selectbox("Select an analysis type:", [
-    "Chat with Healthcare Bot",
     "Forecast",
     "Cost Distribution",
     "Per Employee Cost",
@@ -48,44 +46,7 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
 
 cost_column = st.sidebar.selectbox("Select cost column:", [col for col in df.columns if 'amount' in col.lower()])
 
-if analysis_type == "Chat with Healthcare Bot":
-    st.subheader("Ask Me Anything About Your Healthcare Data ✨")
-
-    user_input = st.chat_input("Ask about forecast, cost trends, diagnoses, etc.")
-
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    for role, text in st.session_state.chat_history:
-        with st.chat_message(role):
-            st.markdown(text)
-
-    if user_input:
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        st.session_state.chat_history.append(("user", user_input))
-
-        columns_summary = ", ".join(df.columns[:15])
-        prompt = f"""You are a healthcare data analyst bot. You are analyzing this dataset with columns: {columns_summary}. \
-        The user asked: {user_input}\nAnswer with the current data insights and yearly forecast in a helpful and concise way."""
-
-        openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_input}
-            ]
-        )
-
-        answer = response['choices'][0]['message']['content']
-
-        with st.chat_message("assistant"):
-            st.markdown(answer)
-        st.session_state.chat_history.append(("assistant", answer))
-
-elif analysis_type == "Forecast":
+if analysis_type == "Forecast":
     freq = 'Y'  # Force yearly forecast
     periods = st.sidebar.slider("Forecast years ahead", 1, 10, 3)
 
@@ -111,4 +72,34 @@ elif analysis_type == "Forecast":
     else:
         st.warning("Not enough yearly data to forecast.")
 
-# The rest of the app remains unchanged...
+elif analysis_type == "Cost Distribution":
+    group_column = st.sidebar.selectbox("Group by:", ['employee_gender', 'relationship', age_band_col])
+    if group_column:
+        grouped = df.groupby(group_column)[cost_column].sum().sort_values(ascending=False)
+        st.subheader(f"Cost Distribution by {group_column}")
+        st.bar_chart(grouped)
+        st.dataframe(grouped)
+
+elif analysis_type == "Per Employee Cost":
+    df['year'] = df[date_column].dt.year
+    grouped = df.groupby(['employee_id', 'year'])[cost_column].sum().reset_index()
+    st.subheader("Per Employee Cost by Year")
+    st.dataframe(grouped.head(100))
+
+elif analysis_type == "Top 5 Diagnoses" and diagnosis_col:
+    grouped = df.groupby(diagnosis_col)[cost_column].sum().nlargest(5)
+    st.subheader("Top 5 Diagnoses by Cost")
+    st.bar_chart(grouped)
+    st.dataframe(grouped)
+
+elif analysis_type == "Top 5 Drugs" and drug_col:
+    grouped = df.groupby(drug_col)[cost_column].sum().nlargest(5)
+    st.subheader("Top 5 Drugs by Cost")
+    st.bar_chart(grouped)
+    st.dataframe(grouped)
+
+elif analysis_type == "Top 5 Costliest Claims This Month":
+    latest_month = df[date_column].dt.to_period('M').max()
+    subset = df[df[date_column].dt.to_period('M') == latest_month]
+    st.subheader("Top 5 Costliest Claims This Month")
+    st.dataframe(subset.nlargest(5, cost_column))
