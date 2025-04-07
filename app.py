@@ -7,18 +7,22 @@ from io import BytesIO
 st.set_page_config(page_title="Healthcare Forecast App", layout="wide")
 
 @st.cache_data
+
 def load_data():
     df = pd.read_csv("Gen_AI.csv")
+    df.columns = df.columns.str.lower().str.strip()  # Normalize column names
     df['service_from_date'] = pd.to_datetime(df['service_from_date'], errors='coerce')
     return df
 
 df = load_data()
 
+# Dynamically identify important columns
+columns = df.columns.tolist()
 date_column = 'service_from_date'
-procedure_col = next((col for col in df.columns if 'procedure' in col.lower()), None)
-drug_col = next((col for col in df.columns if 'ndc' in col.lower()), None)
-diagnosis_col = next((col for col in df.columns if 'diagnosis' in col.lower()), None)
-age_band_col = next((col for col in df.columns if 'age' in col.lower() and 'band' in col.lower()), None)
+procedure_col = next((col for col in columns if 'procedure' in col), None)
+drug_col = next((col for col in columns if 'ndc' in col or 'drug' in col), None)
+diagnosis_col = next((col for col in columns if 'diagnosis' in col), None)
+age_band_col = next((col for col in columns if 'age' in col and 'band' in col), None)
 
 st.sidebar.title("Healthcare Forecast & Analysis")
 analysis_type = st.sidebar.selectbox("Select an analysis type:", [
@@ -44,12 +48,12 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Claim Spend by Place of Service",
 ])
 
-cost_column = st.sidebar.selectbox("Select cost column:", [col for col in df.columns if 'amount' in col.lower()])
+amount_cols = [col for col in columns if 'amount' in col]
+cost_column = st.sidebar.selectbox("Select cost column:", amount_cols if amount_cols else columns)
 
 if analysis_type == "Forecast":
-    freq = 'Y'  # Force yearly forecast
+    freq = 'Y'
     periods = st.sidebar.slider("Forecast years ahead", 1, 10, 3)
-
     df_grouped = df.groupby(pd.Grouper(key=date_column, freq=freq))[cost_column].sum().reset_index()
     df_grouped.columns = ['ds', 'y']
     df_grouped = df_grouped[df_grouped['y'] > 0].dropna()
@@ -73,7 +77,7 @@ if analysis_type == "Forecast":
         st.warning("Not enough yearly data to forecast.")
 
 elif analysis_type == "Cost Distribution":
-    group_column = st.sidebar.selectbox("Group by:", ['employee_gender', 'relationship', age_band_col])
+    group_column = st.sidebar.selectbox("Group by:", [col for col in ['employee_gender', 'relationship', age_band_col] if col in columns])
     if group_column:
         grouped = df.groupby(group_column)[cost_column].sum().sort_values(ascending=False)
         st.subheader(f"Cost Distribution by {group_column}")
