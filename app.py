@@ -2,36 +2,29 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
-from io import BytesIO
 import openai
 import os
 
 st.set_page_config(page_title="Healthcare Forecast App", layout="wide")
 
-# Load data and ensure the columns match the dataset
 @st.cache_data
 def load_data():
-    try:
-        # Load specific columns based on the dataset structure
-        df = pd.read_csv("Gen_AI.csv", usecols=[
-            "service_from_date", "paid_amount", "employee_gender", "diagnosis_1_code", "employee_id"
-        ])
-        df.columns = df.columns.str.lower().str.strip()  # Normalize column names
-        df['service_from_date'] = pd.to_datetime(df['service_from_date'], errors='coerce')
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return None
+    # Loading data and normalizing columns
+    df = pd.read_csv("Gen_AI.csv")
+    df.columns = df.columns.str.lower().str.strip()
+    df['service_from_date'] = pd.to_datetime(df['service_from_date'], errors='coerce')
+    return df
 
 df = load_data()
 
-# Dynamically identify important columns based on the dataset
+# Dynamically identify important columns
 columns = df.columns.tolist()
 date_column = 'service_from_date'
+diagnosis_col = next((col for col in columns if 'diagnosis' in col), None)
+age_band_col = next((col for col in columns if 'age' in col and 'band' in col), None)
 amount_cols = [col for col in columns if 'amount' in col]
-cost_column = 'paid_amount'  # Adjusted to the correct cost column
+cost_column = st.sidebar.selectbox("Select cost column:", amount_cols if amount_cols else columns)
 
-# Sidebar settings for analysis options
 st.sidebar.title("Healthcare Forecast & Analysis")
 analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Cost Distribution",
@@ -56,13 +49,14 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Ask Healthcare Predictions"
 ])
 
-# Check if the user selects 'Ask Healthcare Predictions'
+# Ask Healthcare Predictions
 if analysis_type == "Ask Healthcare Predictions":
-    st.subheader("Choose AI Option")
-    ai_option = st.radio("Select an AI-powered option:", ["Forecast Data Using AI", "Custom Analysis with AI"])
-    
-    if ai_option == "Forecast Data Using AI":
-        # Forecast option as previously implemented
+    prediction_type = st.selectbox("Choose an AI-based prediction:", ["Forecast Data using AI", "Custom Analysis with AI"])
+
+    if prediction_type == "Forecast Data using AI":
+        st.subheader("Forecast Data using AI")
+
+        # Forecast Section
         freq = 'Y'
         periods = st.sidebar.slider("Forecast years ahead", 1, 10, 3)
         df_grouped = df.groupby(pd.Grouper(key=date_column, freq=freq))[cost_column].sum().reset_index()
@@ -82,13 +76,13 @@ if analysis_type == "Ask Healthcare Predictions":
             forecast_df = forecast[['ds', 'yhat']]
             st.dataframe(forecast_df.tail(periods))
 
+            # Download forecast data
             csv = forecast_df.to_csv(index=False).encode('utf-8')
             st.download_button("Download Forecast CSV", csv, "forecast.csv", "text/csv")
         else:
             st.warning("Not enough yearly data to forecast.")
-    
-    elif ai_option == "Custom Analysis with AI":
-        # Handle custom analysis via AI (e.g., chatbot functionality)
+
+    elif prediction_type == "Custom Analysis with AI":
         st.subheader("Ask the AI Assistant")
         user_question = st.text_area("Type your question about the data:")
         endpoint = os.getenv("OPENAI_API_BASE")
@@ -112,12 +106,36 @@ if analysis_type == "Ask Healthcare Predictions":
             except Exception as e:
                 st.error(f"Error: {e}")
 
+# Other Analysis Options
 elif analysis_type == "Cost Distribution":
-    group_column = st.sidebar.selectbox("Group by:", [col for col in ['employee_gender', 'relationship'] if col in columns])
+    group_column = st.sidebar.selectbox("Group by:", [col for col in ['employee_gender', 'relationship', age_band_col] if col in columns])
     if group_column:
         grouped = df.groupby(group_column)[cost_column].sum().sort_values(ascending=False)
         st.subheader(f"Cost Distribution by {group_column}")
         st.bar_chart(grouped)
         st.dataframe(grouped)
 
-# Other analyses can be added in the same manner for the other analysis options.
+elif analysis_type == "Per Employee Cost":
+    df['year'] = df[date_column].dt.year
+    grouped = df.groupby(['employee_id', 'year'])[cost_column].sum().reset_index()
+    st.subheader("Per Employee Cost by Year")
+    st.dataframe(grouped.head(100))
+
+elif analysis_type == "Top 5 Diagnoses" and diagnosis_col:
+    grouped = df.groupby(diagnosis_col)[cost_column].sum().nlargest(5)
+    st.subheader("Top 5 Diagnoses by Cost")
+    st.bar_chart(grouped)
+    st.dataframe(grouped)
+
+elif analysis_type == "Top 5 Drugs" and drug_col:
+    grouped = df.groupby(drug_col)[cost_column].sum().nlargest(5)
+    st.subheader("Top 5 Drugs by Cost")
+    st.bar_chart(grouped)
+    st.dataframe(grouped)
+
+elif analysis_type == "Top 5 Costliest Claims This Month":
+    latest_month = df[date_column].dt.to_period('M').max()
+    subset = df[df[date_column].dt.to_period('M') == latest_month]
+    st.subheader("Top 5 Costliest Claims This Month")
+    st.dataframe(subset.nlargest(5, cost_column))
+
