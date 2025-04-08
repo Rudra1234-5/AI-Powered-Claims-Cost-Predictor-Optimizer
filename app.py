@@ -46,19 +46,19 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
 healthcare_prediction_option = st.sidebar.button("Ask Healthcare Predictions")
 
 if healthcare_prediction_option:
-    # First Option: Forecast Data
+    # First Option: Choose Forecast or Custom Analysis
     st.title("AI Healthcare Predictions")
     st.subheader("Select an option for AI-based healthcare predictions")
 
     prediction_option = st.selectbox(
         "Choose an option:",
-        ["Forecast Healthcare Data", "Custom Analysis with AI"]
+        ["Forecast Data using AI", "Custom Analysis with AI"]
     )
 
-    if prediction_option == "Forecast Healthcare Data":
+    if prediction_option == "Forecast Data using AI":
         # Forecasting option for healthcare data
-        st.subheader("Forecast Data")
-        
+        st.subheader("Forecast Healthcare Data")
+
         # Select cost column for forecasting
         amount_cols = [col for col in columns if 'amount' in col]
         cost_column = st.selectbox("Select cost column for forecasting:", amount_cols if amount_cols else columns)
