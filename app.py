@@ -3,11 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 from io import BytesIO
+import openai
+import os
 
 st.set_page_config(page_title="Healthcare Forecast App", layout="wide")
 
 @st.cache_data
-
 def load_data():
     df = pd.read_csv("Gen_AI.csv")
     df.columns = df.columns.str.lower().str.strip()  # Normalize column names
@@ -46,6 +47,7 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Trend of Cost Over Time by Relationship",
     "In-Network vs Out-of-Network Spend",
     "Claim Spend by Place of Service",
+    "Chat with AI"
 ])
 
 amount_cols = [col for col in columns if 'amount' in col]
@@ -107,3 +109,26 @@ elif analysis_type == "Top 5 Costliest Claims This Month":
     subset = df[df[date_column].dt.to_period('M') == latest_month]
     st.subheader("Top 5 Costliest Claims This Month")
     st.dataframe(subset.nlargest(5, cost_column))
+
+elif analysis_type == "Chat with AI":
+    st.subheader("Ask the AI Assistant")
+    user_question = st.text_area("Type your question about the data:")
+    endpoint = os.getenv("OPENAI_API_BASE")
+    api_key = os.getenv("OPENAI_API_KEY")
+    if st.button("Ask") and user_question and api_key and endpoint:
+        try:
+            openai.api_key = api_key
+            context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
+            messages = [
+                {"role": "system", "content": context},
+                {"role": "user", "content": user_question}
+            ]
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=messages,
+                api_key=api_key,
+                base_url=endpoint
+            )
+            st.write(response.choices[0].message["content"])
+        except Exception as e:
+            st.error(f"Error: {e}")
