@@ -42,55 +42,91 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Claim Spend by Place of Service",
 ])
 
-# Distinct Chatbot option below the analysis types
-chatbot_option = st.sidebar.button("Chat with AI")
+# Distinct option for Healthcare Prediction/Insights below the analysis types
+healthcare_prediction_option = st.sidebar.button("Ask Healthcare Predictions")
 
-# Now we have the "Chat with AI" section
-if chatbot_option:
-    st.title("Chat with AI Assistant")
-    st.subheader("Ask questions about the healthcare data")
+if healthcare_prediction_option:
+    # First Option: Forecast Data
+    st.title("AI Healthcare Predictions")
+    st.subheader("Select an option for AI-based healthcare predictions")
 
-    user_question = st.text_area("Type your question here:")
+    prediction_option = st.selectbox(
+        "Choose an option:",
+        ["Forecast Healthcare Data", "Custom Analysis with AI"]
+    )
 
-    # Get API key and endpoint from environment variables
-    api_key = os.getenv("OPENAI_API_KEY")
-    endpoint = os.getenv("OPENAI_API_BASE")
-
-    # Ensure API key and endpoint are set
-    if not api_key or not endpoint:
-        st.error("API Key or Endpoint not set. Please check your environment variables.")
-
-    # Check if the button is pressed and input is valid
-    if st.button("Ask AI") and user_question and api_key and endpoint:
-        try:
-            openai.api_key = api_key
-            context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
-            messages = [
-                {"role": "system", "content": context},
-                {"role": "user", "content": user_question}
-            ]
-            
-            with st.spinner('Generating response...'):
-                # Make the API call
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=messages,
-                    api_key=api_key,
-                    base_url=endpoint
-                )
-
-            # Print full API response for debugging
-            st.write("Full API Response:")
-            st.write(response)  # This will show the full response object
-
-            # Check the response format and extract content
-            if 'choices' in response and len(response['choices']) > 0:
-                answer = response['choices'][0]['message']['content']
-                st.write("**AI Response:**")
-                st.write(answer)  # Display the response in the app
-            else:
-                st.error("No response from AI. Please try again later.")
+    if prediction_option == "Forecast Healthcare Data":
+        # Forecasting option for healthcare data
+        st.subheader("Forecast Data")
         
-        except Exception as e:
-            st.error(f"Error: {e}")
+        # Select cost column for forecasting
+        amount_cols = [col for col in columns if 'amount' in col]
+        cost_column = st.selectbox("Select cost column for forecasting:", amount_cols if amount_cols else columns)
 
+        # Add forecast logic here (same as before)
+        freq = 'Y'
+        periods = st.sidebar.slider("Forecast years ahead", 1, 10, 3)
+        df_grouped = df.groupby(pd.Grouper(key=date_column, freq=freq))[cost_column].sum().reset_index()
+        df_grouped.columns = ['ds', 'y']
+        df_grouped = df_grouped[df_grouped['y'] > 0].dropna()
+
+        if len(df_grouped) > 2:
+            from prophet import Prophet
+            model = Prophet(seasonality_mode='multiplicative', yearly_seasonality=True)
+            model.fit(df_grouped)
+            future = model.make_future_dataframe(periods=periods, freq=freq)
+            forecast = model.predict(future)
+
+            st.subheader("Forecasted Results (Yearly)")
+            fig1 = model.plot(forecast)
+            st.pyplot(fig1)
+
+            forecast_df = forecast[['ds', 'yhat']]
+            st.dataframe(forecast_df.tail(periods))
+
+            csv = forecast_df.to_csv(index=False).encode('utf-8')
+            st.download_button("Download Forecast CSV", csv, "forecast.csv", "text/csv")
+        else:
+            st.warning("Not enough yearly data to forecast.")
+
+    elif prediction_option == "Custom Analysis with AI":
+        # Custom analysis with AI
+        st.subheader("Custom Analysis")
+        user_question = st.text_area("Type your custom question about the healthcare data:")
+
+        # Get API key and endpoint from environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
+        endpoint = os.getenv("OPENAI_API_BASE")
+
+        if not api_key or not endpoint:
+            st.error("API Key or Endpoint not set. Please check your environment variables.")
+
+        # Check if the button is pressed and input is valid
+        if st.button("Ask AI") and user_question and api_key and endpoint:
+            try:
+                openai.api_key = api_key
+                context = f"You are a helpful healthcare analyst. Here's a dataset summary:\n\n{df.head().to_string()}"
+                messages = [
+                    {"role": "system", "content": context},
+                    {"role": "user", "content": user_question}
+                ]
+                
+                with st.spinner('Generating response...'):
+                    # Make the API call
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4",
+                        messages=messages,
+                        api_key=api_key,
+                        base_url=endpoint
+                    )
+
+                # Check the response format and extract content
+                if 'choices' in response and len(response['choices']) > 0:
+                    answer = response['choices'][0]['message']['content']
+                    st.write("**AI Response:**")
+                    st.write(answer)  # Display the response in the app
+                else:
+                    st.error("No response from AI. Please try again later.")
+            
+            except Exception as e:
+                st.error(f"Error: {e}")
