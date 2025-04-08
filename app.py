@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from prophet import Prophet
 import openai
 import os
 
@@ -16,13 +14,9 @@ def load_data():
 
 df = load_data()
 
-# Dynamically identify important columns
 columns = df.columns.tolist()
 date_column = 'service_from_date'
-procedure_col = next((col for col in columns if 'procedure' in col), None)
-drug_col = next((col for col in columns if 'ndc' in col or 'drug' in col), None)
-diagnosis_col = next((col for col in columns if 'diagnosis' in col), None)
-age_band_col = next((col for col in columns if 'age' in col and 'band' in col), None)
+cost_column = 'paid_amount'  # Adjust this based on your actual dataset column
 
 st.sidebar.title("Healthcare Forecast & Analysis")
 analysis_type = st.sidebar.selectbox("Select an analysis type:", [
@@ -49,11 +43,6 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Chat with AI"
 ])
 
-amount_cols = [col for col in columns if 'amount' in col]
-cost_column = st.sidebar.selectbox("Select cost column:", amount_cols if amount_cols else columns)
-
-# Analysis and charts here...
-
 # Chatbot section - Move it to the main area
 if analysis_type == "Chat with AI":
     st.title("Chat with AI Assistant")
@@ -64,8 +53,13 @@ if analysis_type == "Chat with AI":
     if user_question:
         st.markdown(f"**Your Question:** {user_question}")
     
-    endpoint = os.getenv("OPENAI_API_BASE")
+    # Get API key and endpoint from environment variables
     api_key = os.getenv("OPENAI_API_KEY")
+    endpoint = os.getenv("OPENAI_API_BASE")
+
+    # Ensure API key and endpoint are set
+    if not api_key or not endpoint:
+        st.error("API Key or Endpoint not set. Please check your environment variables.")
     
     # Check if the button is pressed and input is valid
     if st.button("Ask AI") and user_question and api_key and endpoint:
@@ -76,19 +70,27 @@ if analysis_type == "Chat with AI":
                 {"role": "system", "content": context},
                 {"role": "user", "content": user_question}
             ]
+            
             with st.spinner('Generating response...'):
+                # Make the API call
                 response = openai.ChatCompletion.create(
                     model="gpt-4",
                     messages=messages,
                     api_key=api_key,
                     base_url=endpoint
                 )
-            
-            # Extract AI's response and display it
-            answer = response.choices[0].message["content"]
-            st.write("**AI Response:**")
-            st.write(answer)  # Display the response in the app
+
+            # Print full API response for debugging
+            st.write("Full API Response:")
+            st.write(response)  # This will show the full response object
+
+            # Check the response format and extract content
+            if 'choices' in response and len(response['choices']) > 0:
+                answer = response['choices'][0]['message']['content']
+                st.write("**AI Response:**")
+                st.write(answer)  # Display the response in the app
+            else:
+                st.error("No response from AI. Please try again later.")
             
         except Exception as e:
             st.error(f"Error: {e}")
-            st.write("API Response Error. Check the details above.")
