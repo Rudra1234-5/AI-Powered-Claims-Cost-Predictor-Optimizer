@@ -42,54 +42,55 @@ analysis_type = st.sidebar.selectbox("Select an analysis type:", [
     "Claim Spend by Place of Service",
 ])
 
-# Now the chatbot is not an option in the analysis dropdown
-# Add a distinct section for Chatbot in the main area
-st.title("Healthcare Forecast & Analysis")
+# Distinct Chatbot option below the analysis types
+chatbot_option = st.sidebar.button("Chat with AI")
 
-# Chatbot Section
-st.header("Chat with AI Assistant")
-st.subheader("Ask questions about the healthcare data")
+# Now we have the "Chat with AI" section
+if chatbot_option:
+    st.title("Chat with AI Assistant")
+    st.subheader("Ask questions about the healthcare data")
 
-user_question = st.text_area("Type your question here:")
+    user_question = st.text_area("Type your question here:")
 
-# Get API key and endpoint from environment variables
-api_key = os.getenv("OPENAI_API_KEY")
-endpoint = os.getenv("OPENAI_API_BASE")
+    # Get API key and endpoint from environment variables
+    api_key = os.getenv("OPENAI_API_KEY")
+    endpoint = os.getenv("OPENAI_API_BASE")
 
-# Ensure API key and endpoint are set
-if not api_key or not endpoint:
-    st.error("API Key or Endpoint not set. Please check your environment variables.")
+    # Ensure API key and endpoint are set
+    if not api_key or not endpoint:
+        st.error("API Key or Endpoint not set. Please check your environment variables.")
 
-# Check if the button is pressed and input is valid
-if st.button("Ask AI") and user_question and api_key and endpoint:
-    try:
-        openai.api_key = api_key
-        context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
-        messages = [
-            {"role": "system", "content": context},
-            {"role": "user", "content": user_question}
-        ]
+    # Check if the button is pressed and input is valid
+    if st.button("Ask AI") and user_question and api_key and endpoint:
+        try:
+            openai.api_key = api_key
+            context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
+            messages = [
+                {"role": "system", "content": context},
+                {"role": "user", "content": user_question}
+            ]
+            
+            with st.spinner('Generating response...'):
+                # Make the API call
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=messages,
+                    api_key=api_key,
+                    base_url=endpoint
+                )
+
+            # Print full API response for debugging
+            st.write("Full API Response:")
+            st.write(response)  # This will show the full response object
+
+            # Check the response format and extract content
+            if 'choices' in response and len(response['choices']) > 0:
+                answer = response['choices'][0]['message']['content']
+                st.write("**AI Response:**")
+                st.write(answer)  # Display the response in the app
+            else:
+                st.error("No response from AI. Please try again later.")
         
-        with st.spinner('Generating response...'):
-            # Make the API call
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=messages,
-                api_key=api_key,
-                base_url=endpoint
-            )
+        except Exception as e:
+            st.error(f"Error: {e}")
 
-        # Print full API response for debugging
-        st.write("Full API Response:")
-        st.write(response)  # This will show the full response object
-
-        # Check the response format and extract content
-        if 'choices' in response and len(response['choices']) > 0:
-            answer = response['choices'][0]['message']['content']
-            st.write("**AI Response:**")
-            st.write(answer)  # Display the response in the app
-        else:
-            st.error("No response from AI. Please try again later.")
-        
-    except Exception as e:
-        st.error(f"Error: {e}")
