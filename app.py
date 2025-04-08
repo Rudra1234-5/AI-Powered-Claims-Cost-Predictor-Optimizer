@@ -46,15 +46,31 @@ def forecast_data_with_ai(df, metric, forecast_period):
     prompt = generate_forecast_prompt(df, metric, forecast_period)
     
     # Call the OpenAI API to get the forecast
-    response = openai.Completion.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4",
-        prompt=prompt,
-        max_tokens=150
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant for healthcare cost forecasting."},
+            {"role": "user", "content": prompt}
+        ]
     )
     
     # Get the forecast result from the response
-    forecast_result = response.choices[0].text.strip()
+    forecast_result = response['choices'][0]['message']['content']
     return forecast_result
+
+def custom_analysis_with_ai(custom_query):
+    # Call the OpenAI API to get the custom analysis
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant for healthcare analysis."},
+            {"role": "user", "content": custom_query}
+        ]
+    )
+    
+    # Get the analysis result from the response
+    analysis_result = response['choices'][0]['message']['content']
+    return analysis_result
 
 # Streamlit Interface
 st.title("AI-Powered Healthcare Predictions")
@@ -97,12 +113,7 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         
         if st.button("Analyze with AI"):
             if custom_query:
-                response = openai.Completion.create(
-                    model="gpt-4",
-                    prompt=custom_query,
-                    max_tokens=150
-                )
-                analysis_result = response.choices[0].text.strip()
+                analysis_result = custom_analysis_with_ai(custom_query)
                 st.write("AI Custom Analysis Result: ", analysis_result)
             else:
                 st.error("Please enter a custom query for analysis.")
