@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
-from io import BytesIO
 import openai
 import os
 
@@ -62,13 +61,13 @@ if analysis_type == "Chat with AI":
     
     user_question = st.text_area("Type your question here:")
     
-    # Display the user's question in a clear and visible area
     if user_question:
         st.markdown(f"**Your Question:** {user_question}")
     
     endpoint = os.getenv("OPENAI_API_BASE")
     api_key = os.getenv("OPENAI_API_KEY")
     
+    # Check if the button is pressed and input is valid
     if st.button("Ask AI") and user_question and api_key and endpoint:
         try:
             openai.api_key = api_key
@@ -77,12 +76,19 @@ if analysis_type == "Chat with AI":
                 {"role": "system", "content": context},
                 {"role": "user", "content": user_question}
             ]
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=messages,
-                api_key=api_key,
-                base_url=endpoint
-            )
-            st.write(response.choices[0].message["content"])
+            with st.spinner('Generating response...'):
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=messages,
+                    api_key=api_key,
+                    base_url=endpoint
+                )
+            
+            # Extract AI's response and display it
+            answer = response.choices[0].message["content"]
+            st.write("**AI Response:**")
+            st.write(answer)  # Display the response in the app
+            
         except Exception as e:
             st.error(f"Error: {e}")
+            st.write("API Response Error. Check the details above.")
