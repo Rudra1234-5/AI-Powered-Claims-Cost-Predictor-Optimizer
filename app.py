@@ -10,8 +10,8 @@ openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 # Load data
 @st.cache_data
-def load_data(file):
-    return pd.read_csv(file, usecols=[
+def load_data():
+    return pd.read_csv("Gen_AI.csv", usecols=[
         "service_from_date",
         "paid_amount",
         "employee_gender",
@@ -19,15 +19,10 @@ def load_data(file):
         "employee_id"
     ])
 
-# Sidebar to upload CSV file
-uploaded_file = st.sidebar.file_uploader("Upload Gen_AI.csv", type="csv")
-
-if uploaded_file is not None:
-    df = load_data(uploaded_file)
-    df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors='coerce')
-    df.dropna(subset=["service_from_date"], inplace=True)
-else:
-    st.error("Please upload the Gen_AI.csv file to proceed.")
+# Load the data from the CSV file
+df = load_data()
+df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors='coerce')
+df.dropna(subset=["service_from_date"], inplace=True)
 
 # Sidebar
 st.sidebar.title("Select an option")
