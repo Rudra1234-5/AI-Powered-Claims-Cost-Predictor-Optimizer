@@ -12,10 +12,10 @@ openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 @st.cache_data
 def load_data():
     return pd.read_csv("Gen_AI.csv", usecols=[
-        "service_from_date",
+        "service_from_date",    # Assuming it's named correctly in the CSV
         "paid_amount",
         "employee_gender",
-        "diagnosis_description",
+        "diagnosis_1_code",     # Assuming you want to work with diagnosis_1_code
         "employee_id"
     ])
 
@@ -50,8 +50,8 @@ if option == "AI-Powered Healthcare Predictions":
         st.plotly_chart(fig)
 
     elif prediction_type == "Top Diagnosis by Cost":
-        df_grouped = df.groupby("diagnosis_description")["paid_amount"].sum().sort_values(ascending=False).head(10).reset_index()
-        fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_description", orientation="h", title="Top 10 Diagnoses by Cost")
+        df_grouped = df.groupby("diagnosis_1_code")["paid_amount"].sum().sort_values(ascending=False).head(10).reset_index()
+        fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_1_code", orientation="h", title="Top 10 Diagnoses by Cost")
         st.plotly_chart(fig)
 
     elif prediction_type == "Average Monthly Cost Per Employee":
@@ -63,12 +63,12 @@ if option == "AI-Powered Healthcare Predictions":
         st.plotly_chart(fig)
 
     elif prediction_type == "Diagnosis Cost Trend Over Time":
-        top_diagnoses = df["diagnosis_description"].value_counts().nlargest(5).index
-        df_filtered = df[df["diagnosis_description"].isin(top_diagnoses)]
+        top_diagnoses = df["diagnosis_1_code"].value_counts().nlargest(5).index
+        df_filtered = df[df["diagnosis_1_code"].isin(top_diagnoses)]
         df_filtered["month"] = df_filtered["service_from_date"].dt.to_period("M")
-        df_grouped = df_filtered.groupby(["month", "diagnosis_description"])["paid_amount"].sum().reset_index()
+        df_grouped = df_filtered.groupby(["month", "diagnosis_1_code"])["paid_amount"].sum().reset_index()
         df_grouped["month"] = df_grouped["month"].astype(str)
-        fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_description", title="Diagnosis Cost Trend Over Time")
+        fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code", title="Diagnosis Cost Trend Over Time")
         st.plotly_chart(fig)
 
     elif prediction_type == "Employee-wise Cost Distribution":
@@ -90,7 +90,7 @@ elif option == "Ask Healthcare Predictions":
         if st.button("Ask AI") and user_query:
             with st.spinner("Thinking..."):
                 try:
-                    response = openai.chat.completions.create(
+                    response = openai.ChatCompletion.create(
                         model="gpt-4",
                         messages=[
                             {"role": "system", "content": "You are a healthcare data expert."},
@@ -98,6 +98,6 @@ elif option == "Ask Healthcare Predictions":
                         ]
                     )
                     st.success("AI Response:")
-                    st.write(response.choices[0].message.content)
+                    st.write(response.choices[0].message["content"])
                 except Exception as e:
                     st.error(f"Error: {e}")
