@@ -1,119 +1,85 @@
-import openai
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+from openai import OpenAI
+import datetime
 
-# Set your OpenAI API key
-openai.api_key = 'your_openai_api_key_here'
+# Load OpenAI client
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+# Set page title
+st.set_page_config(page_title="AI-Powered Healthcare Predictor", layout="wide")
+st.title("AI-Powered Healthcare Predictor")
+
+# Load data
 @st.cache_data
 def load_data():
-    # Load the dataset
-    df = pd.read_csv("Gen_AI.csv")
-    
-    # Normalize column names (strip leading/trailing spaces, lowercase all letters)
-    df.columns = df.columns.str.strip().str.lower()
-    
-    # Check available columns in the dataset
-    st.write(f"Available columns in the dataset: {df.columns.tolist()}")
-    
-    # Define the columns to use for the analysis
-    required_columns = [
-        "service_from_date", "paid_amount", "employee_gender", 
-        "diagnosis_1_code_description", "employee_id"
-    ]
-    
-    # Check if the required columns exist in the dataset
-    missing_columns = [col for col in required_columns if col not in df.columns]
-    if missing_columns:
-        st.error(f"Missing columns: {', '.join(missing_columns)}")
-        return None
-    
-    # Filter only the necessary columns
-    df = df[required_columns]
-    
-    # Convert service_from_date to datetime (handling errors)
-    df['service_from_date'] = pd.to_datetime(df['service_from_date'], errors='coerce')
-    
+    df = pd.read_csv("Gen_AI.csv", usecols=[
+        "service_from_date", "paid_amount", "employee_gender",
+        "diagnosis_description", "employee_id"])
+    df["service_from_date"] = pd.to_datetime(df["service_from_date"])
     return df
 
-def generate_forecast_prompt(df, metric, forecast_period):
-    # Generate a prompt for the AI model to forecast the paid amount
-    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided, which includes the following columns: service_from_date, paid_amount, employee_gender, diagnosis_1_code_description, and employee_id."
-    return prompt
+df = load_data()
 
-def forecast_data_with_ai(df, metric, forecast_period):
-    # Generate the prompt
-    prompt = generate_forecast_prompt(df, metric, forecast_period)
-    
-    # Call the OpenAI API to get the forecast
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant for healthcare cost forecasting."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    
-    # Get the forecast result from the response
-    forecast_result = response['choices'][0]['message']['content']
-    return forecast_result
+# Sidebar options
+st.sidebar.title("Select an option")
+option = st.sidebar.radio("", [
+    "Forecasting Analysis",
+    "Cost Trend Dashboard",
+    "Ask Healthcare Predictions"])
 
-def custom_analysis_with_ai(custom_query):
-    # Call the OpenAI API to get the custom analysis
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant for healthcare analysis."},
-            {"role": "user", "content": custom_query}
-        ]
-    )
-    
-    # Get the analysis result from the response
-    analysis_result = response['choices'][0]['message']['content']
-    return analysis_result
+# Forecasting
+if option == "Forecasting Analysis":
+    st.subheader("Forecasting Analysis")
+    gender = st.selectbox("Select Gender", df["employee_gender"].unique())
+    diag = st.selectbox("Select Diagnosis", df["diagnosis_description"].unique())
 
-# Streamlit Interface
-st.title("AI-Powered Healthcare Predictions")
+    filtered = df[(df["employee_gender"] == gender) & (df["diagnosis_description"] == diag)]
+    daily = filtered.groupby("service_from_date")["paid_amount"].sum().reset_index()
 
-# Sidebar for navigation
-sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
-sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
+    fig = px.line(daily, x="service_from_date", y="paid_amount",
+                  title=f"Daily Paid Amount for {diag} ({gender})")
+    st.plotly_chart(fig, use_container_width=True)
 
-if sidebar_selection == "Select Analysis Type":
-    st.write("Here, users can explore data analysis options and visualization tools.")
-    # Your existing analysis tools and plots code here
+# Dashboard
+elif option == "Cost Trend Dashboard":
+    st.subheader("Cost Trend Dashboard")
+    st.plotly_chart(px.histogram(df, x="diagnosis_description", y="paid_amount",
+                                 color="employee_gender", barmode="group",
+                                 title="Paid Amount by Diagnosis and Gender"), use_container_width=True)
 
-elif sidebar_selection == "Ask Healthcare Predictions":
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using AI", "Custom Analysis with AI"])
-    
-    if prediction_option == "Forecast Data using AI":
-        st.subheader("Forecast Data using AI")
-        # Allow the user to select the metric (e.g., paid_amount)
-        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
-        
-        # Allow the user to select the forecast period (e.g., 1 month, 3 months)
-        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
-        
-        # Get the data and forecast the selected metric
-        df = load_data()
-        
-        if df is not None:
-            # Display a preview of the data
-            st.write(df.head())
-            
-            # Trigger AI forecast when the button is clicked
-            if st.button("Generate Forecast"):
-                forecast_result = forecast_data_with_ai(df, metric, forecast_period)
-                st.write("AI Forecast Result: ", forecast_result)
+# AI Predictions
+elif option == "Ask Healthcare Predictions":
+    st.subheader("AI-Powered Healthcare Predictions")
+    prediction_type = st.radio("Select an AI-powered Prediction Type", [
+        "Forecast Data using AI", "Custom Analysis with AI"])
 
-    elif prediction_option == "Custom Analysis with AI":
-        st.subheader("Custom Analysis with AI")
-        # Let the user input custom query
+    if prediction_type == "Forecast Data using AI":
+        st.info("Enter details to generate a forecast prediction using GPT-4")
+        prompt = st.text_area("Describe what you want to forecast:",
+                              "Forecast healthcare costs for female employees with diabetes")
+        if st.button("Generate Forecast"):
+            with st.spinner("Thinking..."):
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a healthcare data analyst."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                st.success(response.choices[0].message.content)
+
+    elif prediction_type == "Custom Analysis with AI":
+        st.info("Enter your custom analysis query to get insights from GPT-4")
         custom_query = st.text_area("Enter Custom Analysis Query")
-        
         if st.button("Analyze with AI"):
-            if custom_query:
-                analysis_result = custom_analysis_with_ai(custom_query)
-                st.write("AI Custom Analysis Result: ", analysis_result)
-            else:
-                st.error("Please enter a custom query for analysis.")
+            with st.spinner("Analyzing with GPT-4..."):
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a healthcare analytics assistant."},
+                        {"role": "user", "content": custom_query}
+                    ]
+                )
+                st.success(response.choices[0].message.content)
