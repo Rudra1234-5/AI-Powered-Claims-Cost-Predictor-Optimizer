@@ -1,85 +1,78 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from openai import OpenAI
-import datetime
+from datetime import datetime
+import openai
+import os
 
-# Load OpenAI client
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-# Set page title
-st.set_page_config(page_title="AI-Powered Healthcare Predictor", layout="wide")
-st.title("AI-Powered Healthcare Predictor")
+# Set OpenAI API key from Streamlit secrets
+openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 # Load data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Gen_AI.csv", usecols=[
-        "service_from_date", "paid_amount", "employee_gender",
-        "diagnosis_description", "employee_id"])
-    df["service_from_date"] = pd.to_datetime(df["service_from_date"])
-    return df
+    return pd.read_csv("Gen_AI.csv", usecols=[
+        "service_from_date",
+        "paid_amount",
+        "employee_gender",
+        "diagnosis_description",
+        "employee_id"
+    ])
 
 df = load_data()
+df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors='coerce')
+df.dropna(subset=["service_from_date"], inplace=True)
 
-# Sidebar options
+# Sidebar
 st.sidebar.title("Select an option")
-option = st.sidebar.radio("", [
-    "Forecasting Analysis",
-    "Cost Trend Dashboard",
-    "Ask Healthcare Predictions"])
+option = st.sidebar.radio("", ["AI-Powered Healthcare Predictions", "Ask Healthcare Predictions"])
 
-# Forecasting
-if option == "Forecasting Analysis":
-    st.subheader("Forecasting Analysis")
-    gender = st.selectbox("Select Gender", df["employee_gender"].unique())
-    diag = st.selectbox("Select Diagnosis", df["diagnosis_description"].unique())
+if option == "AI-Powered Healthcare Predictions":
+    st.title("AI-Powered Healthcare Predictions")
+    prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
+        "Total Cost Over Time",
+        "Gender-wise Cost Distribution",
+        "Top Diagnosis by Cost"
+    ])
 
-    filtered = df[(df["employee_gender"] == gender) & (df["diagnosis_description"] == diag)]
-    daily = filtered.groupby("service_from_date")["paid_amount"].sum().reset_index()
+    if prediction_type == "Total Cost Over Time":
+        df_grouped = df.groupby(df["service_from_date"].dt.to_period("M")).sum(numeric_only=True).reset_index()
+        df_grouped["service_from_date"] = df_grouped["service_from_date"].astype(str)
+        fig = px.line(df_grouped, x="service_from_date", y="paid_amount", title="Total Paid Amount Over Time")
+        st.plotly_chart(fig)
 
-    fig = px.line(daily, x="service_from_date", y="paid_amount",
-                  title=f"Daily Paid Amount for {diag} ({gender})")
-    st.plotly_chart(fig, use_container_width=True)
+    elif prediction_type == "Gender-wise Cost Distribution":
+        df_grouped = df.groupby("employee_gender")["paid_amount"].sum().reset_index()
+        fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost Distribution by Gender")
+        st.plotly_chart(fig)
 
-# Dashboard
-elif option == "Cost Trend Dashboard":
-    st.subheader("Cost Trend Dashboard")
-    st.plotly_chart(px.histogram(df, x="diagnosis_description", y="paid_amount",
-                                 color="employee_gender", barmode="group",
-                                 title="Paid Amount by Diagnosis and Gender"), use_container_width=True)
+    elif prediction_type == "Top Diagnosis by Cost":
+        df_grouped = df.groupby("diagnosis_description")["paid_amount"].sum().sort_values(ascending=False).head(10).reset_index()
+        fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_description", orientation="h", title="Top 10 Diagnoses by Cost")
+        st.plotly_chart(fig)
 
-# AI Predictions
 elif option == "Ask Healthcare Predictions":
-    st.subheader("AI-Powered Healthcare Predictions")
-    prediction_type = st.radio("Select an AI-powered Prediction Type", [
-        "Forecast Data using AI", "Custom Analysis with AI"])
+    st.title("Ask Healthcare Predictions")
+    sub_option = st.radio("Select Mode", ["Forecast Data using AI", "Custom Analysis with AI"])
 
-    if prediction_type == "Forecast Data using AI":
-        st.info("Enter details to generate a forecast prediction using GPT-4")
-        prompt = st.text_area("Describe what you want to forecast:",
-                              "Forecast healthcare costs for female employees with diabetes")
-        if st.button("Generate Forecast"):
+    if sub_option == "Forecast Data using AI":
+        st.info("Coming soon: Intelligent forecasting based on your dataset.")
+
+    elif sub_option == "Custom Analysis with AI":
+        st.subheader("Custom Analysis with AI")
+        user_query = st.text_area("Enter Custom Analysis Query")
+
+        if st.button("Ask AI") and user_query:
             with st.spinner("Thinking..."):
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a healthcare data analyst."},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                st.success(response.choices[0].message.content)
-
-    elif prediction_type == "Custom Analysis with AI":
-        st.info("Enter your custom analysis query to get insights from GPT-4")
-        custom_query = st.text_area("Enter Custom Analysis Query")
-        if st.button("Analyze with AI"):
-            with st.spinner("Analyzing with GPT-4..."):
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a healthcare analytics assistant."},
-                        {"role": "user", "content": custom_query}
-                    ]
-                )
-                st.success(response.choices[0].message.content)
+                try:
+                    response = openai.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a healthcare data expert."},
+                            {"role": "user", "content": user_query}
+                        ]
+                    )
+                    st.success("AI Response:")
+                    st.write(response.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"Error: {e}")
