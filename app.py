@@ -19,17 +19,16 @@ def load_data():
         "employee_id"
     ])
 
-# Load the data from the CSV file
 df = load_data()
 df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors='coerce')
 df.dropna(subset=["service_from_date"], inplace=True)
 
 # Sidebar
 st.sidebar.title("Select an option")
-option = st.sidebar.radio("", ["Healthcare Analysis", "AI-Powered Healthcare Predictions"])
+option = st.sidebar.radio("", ["AI-Powered Healthcare Predictions", "Ask Healthcare Predictions"])
 
-if option == "Healthcare Analysis":
-    st.title("Healthcare Analysis")
+if option == "AI-Powered Healthcare Predictions":
+    st.title("AI-Powered Healthcare Predictions")
     prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
         "Total Cost Over Time",
         "Gender-wise Cost Distribution",
@@ -77,8 +76,8 @@ if option == "Healthcare Analysis":
         fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
         st.plotly_chart(fig)
 
-elif option == "AI-Powered Healthcare Predictions":
-    st.title("AI-Powered Healthcare Predictions")
+elif option == "Ask Healthcare Predictions":
+    st.title("Ask Healthcare Predictions")
     sub_option = st.radio("Select Mode", ["Forecast Data using AI", "Custom Analysis with AI"])
 
     if sub_option == "Forecast Data using AI":
