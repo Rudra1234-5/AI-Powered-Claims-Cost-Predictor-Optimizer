@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 import openai
-import os
 
 # Set OpenAI API key from Streamlit secrets
 openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
@@ -19,16 +17,17 @@ def load_data():
         "employee_id"
     ])
 
+# Load the data from the CSV file
 df = load_data()
 df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors='coerce')
 df.dropna(subset=["service_from_date"], inplace=True)
 
-# Sidebar
+# Sidebar for navigation
 st.sidebar.title("Select an option")
-option = st.sidebar.radio("", ["AI-Powered Healthcare Predictions", "Ask Healthcare Predictions"])
+option = st.sidebar.radio("", ["Healthcare Analysis", "AI-Powered Healthcare Predictions"])
 
-if option == "AI-Powered Healthcare Predictions":
-    st.title("AI-Powered Healthcare Predictions")
+if option == "Healthcare Analysis":
+    st.title("Healthcare Analysis")
     prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
         "Total Cost Over Time",
         "Gender-wise Cost Distribution",
@@ -38,6 +37,7 @@ if option == "AI-Powered Healthcare Predictions":
         "Employee-wise Cost Distribution"
     ])
 
+    # Logic for displaying graphs and analytics based on the selected prediction type
     if prediction_type == "Total Cost Over Time":
         df_grouped = df.groupby(df["service_from_date"].dt.to_period("M")).sum(numeric_only=True).reset_index()
         df_grouped["service_from_date"] = df_grouped["service_from_date"].astype(str)
@@ -76,8 +76,8 @@ if option == "AI-Powered Healthcare Predictions":
         fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
         st.plotly_chart(fig)
 
-elif option == "Ask Healthcare Predictions":
-    st.title("Ask Healthcare Predictions")
+elif option == "AI-Powered Healthcare Predictions":
+    st.title("AI-Powered Healthcare Predictions")
     sub_option = st.radio("Select Mode", ["Forecast Data using AI", "Custom Analysis with AI"])
 
     if sub_option == "Forecast Data using AI":
