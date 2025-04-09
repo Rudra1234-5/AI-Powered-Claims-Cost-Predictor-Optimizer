@@ -4,5 +4,6 @@ matplotlib
 prophet
 streamlit_chat
 openai
+plotly
 
 
