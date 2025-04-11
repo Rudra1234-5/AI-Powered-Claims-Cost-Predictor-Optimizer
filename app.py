@@ -1,3 +1,5 @@
+from utils import *
+
 # Streamlit Interface
 st.title("AI-Powered Healthcare Predictions")
 
