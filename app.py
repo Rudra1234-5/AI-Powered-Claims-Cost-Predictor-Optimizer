@@ -1,4 +1,5 @@
 from utils import *
+from openai import AzureOpenAI
 
 # Streamlit Interface
 st.title("AI-Powered Healthcare Predictions")
