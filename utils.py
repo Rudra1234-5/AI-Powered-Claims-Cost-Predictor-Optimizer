@@ -8,7 +8,7 @@ openai.api_key = 'your_openai_api_key_here'
 @st.cache_data
 def load_data():
     # Load the dataset
-    df = pd.read_csv("Gen_AI.csv")
+    df = pd.read_parquet("Gen_AI.csv")
     
     # Normalize column names (strip leading/trailing spaces, lowercase all letters)
     df.columns = df.columns.str.strip().str.lower()
