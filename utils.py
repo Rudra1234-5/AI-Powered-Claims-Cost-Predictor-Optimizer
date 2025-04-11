@@ -1,6 +1,7 @@
 import openai
 import pandas as pd
 import streamlit as st
+from openai import AzureOpenAI
 
 # Set your OpenAI API key
 openai.api_key = 'your_openai_api_key_here'
