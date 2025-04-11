@@ -5,6 +5,12 @@ import streamlit as st
 # Set your OpenAI API key
 openai.api_key = 'your_openai_api_key_here'
 
+client = AzureOpenAI(
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
+    api_version="2024-10-21",
+    azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+    )
+
 @st.cache_data
 def load_data():
     # Load the dataset
@@ -60,8 +66,8 @@ def forecast_data_with_ai(df, metric, forecast_period):
 
 def custom_analysis_with_ai(custom_query):
     # Call the OpenAI API to get the custom analysis
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini", # Replace with your model dpeloyment name.
         messages=[
             {"role": "system", "content": "You are a helpful assistant for healthcare analysis."},
             {"role": "user", "content": custom_query}
@@ -69,5 +75,5 @@ def custom_analysis_with_ai(custom_query):
     )
     
     # Get the analysis result from the response
-    analysis_result = response['choices'][0]['message']['content']
+    analysis_result = response.choices[0].message.content
     return analysis_result
