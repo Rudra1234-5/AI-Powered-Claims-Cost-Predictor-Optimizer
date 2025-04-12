@@ -1,15 +1,11 @@
 import os
-import openai
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 from datetime import datetime
 from openai import AzureOpenAI
 
-# Set OpenAI API key from Streamlit secrets
-openai.api_key = st.secrets.get("OPENAI_API_KEY", "")
-
-# Azure OpenAI client setup (update keys appropriately if needed)
+# Azure OpenAI client setup
 client = AzureOpenAI(
     api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
@@ -39,14 +35,14 @@ def generate_forecast_prompt(df, metric, forecast_period):
 
 def forecast_data_with_ai(df, metric, forecast_period):
     prompt = generate_forecast_prompt(df, metric, forecast_period)
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a helpful assistant for healthcare cost forecasting."},
             {"role": "user", "content": prompt}
         ]
     )
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content
 
 def custom_analysis_with_ai(custom_query):
     response = client.chat.completions.create(
