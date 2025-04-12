@@ -13,4 +13,5 @@ pystan==2.19.1.1
 
 
 azure-core==1.29.4
-azure-ai-openai==1.0.0b5
+azure-ai-openai>=1.0.0
+
