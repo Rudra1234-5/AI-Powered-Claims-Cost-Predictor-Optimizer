@@ -1,3 +1,4 @@
+import os
 import openai
 import pandas as pd
 import streamlit as st
@@ -19,7 +20,7 @@ client = AzureOpenAI(
 @st.cache_data
 def load_data():
     try:
-        dbfs_path = "/dbfs/team-2/Enrollment.parquet"
+        dbfs_path = os.path.join("/dbfs/team-2", "Enrollment.parquet")
         df = pd.read_parquet(dbfs_path)
         df.columns = df.columns.str.strip().str.lower()
         df = df[[
@@ -118,7 +119,7 @@ if sidebar_selection == "Select Analysis Type":
 
 elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.radio("Select an AI-powered Prediction Type", ["Forecast Data using AI", "Custom Analysis with AI"])
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using AI", "Custom Analysis with AI"])
 
     if prediction_option == "Forecast Data using AI":
         metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
