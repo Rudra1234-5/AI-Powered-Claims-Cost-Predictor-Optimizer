@@ -4,9 +4,5 @@ matplotlib
 plotly
 streamlit-chat
 
-fbprophet==0.7.1
-pystan==2.19.1.1
 
-
-azure-core==1.29.4
-azure-ai-openai==1.0.0b5
+prophet==1.0.1  
