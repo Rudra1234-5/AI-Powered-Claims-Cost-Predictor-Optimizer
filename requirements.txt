@@ -1,8 +1,11 @@
 streamlit
 pandas
 matplotlib
-prophet
-streamlit-chat
 plotly
-azure-ai-openai
-azure-core
+streamlit-chat
+
+prophet
+pystan==2.19.1.1
+
+azure-core==1.29.4
+azure-ai-openai==1.0.0b5
