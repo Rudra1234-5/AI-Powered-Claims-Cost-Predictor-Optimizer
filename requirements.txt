@@ -2,8 +2,7 @@ streamlit
 pandas
 matplotlib
 prophet
-streamlit_chat
-openai
+streamlit-chat
 plotly
-
-
+azure-ai-openai
+azure-core
