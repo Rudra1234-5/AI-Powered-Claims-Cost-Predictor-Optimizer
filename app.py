@@ -5,56 +5,31 @@ import plotly.express as px
 from datetime import datetime
 from openai import AzureOpenAI
 
-# Azure OpenAI client setup
+# Azure OpenAI client setup (update keys appropriately if needed)
 client = AzureOpenAI(
     api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
-# Load data from DBFS path (Parquet file)
-@st.cache_data
+# Load data from DBFS path or mock data for testing
 def load_data():
     try:
-        dbfs_path = os.path.join("/dbfs/team-2", "Enrollment.parquet")
-        df = pd.read_parquet(dbfs_path)
-        df.columns = df.columns.str.strip().str.lower()
-        df = df[[
-            "service_from_date", "paid_amount", "employee_gender", 
-            "diagnosis_1_code_description", "employee_id"
-        ]]
-        df["service_from_date"] = pd.to_datetime(df["service_from_date"], errors="coerce")
-        return df.dropna(subset=["service_from_date"])
+        # Mock data to test functionality
+        data = {
+            "service_from_date": ["2025-01-01", "2025-02-01", "2025-03-01"],
+            "paid_amount": [1000, 1200, 1100],
+            "employee_gender": ["M", "F", "M"],
+            "diagnosis_1_code_description": ["Flu", "Cold", "Flu"],
+            "employee_id": [1, 2, 3]
+        }
+        df = pd.DataFrame(data)
+        df["service_from_date"] = pd.to_datetime(df["service_from_date"])
+        return df
     except Exception as e:
-        st.error(f"Error loading data from DBFS: {e}")
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-def generate_forecast_prompt(df, metric, forecast_period):
-    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided, which includes columns like service_from_date, paid_amount, employee_gender, diagnosis_1_code_description, and employee_id."
-    return prompt
-
-def forecast_data_with_ai(df, metric, forecast_period):
-    prompt = generate_forecast_prompt(df, metric, forecast_period)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant for healthcare cost forecasting."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response.choices[0].message.content
-
-def custom_analysis_with_ai(custom_query):
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant for healthcare analysis."},
-            {"role": "user", "content": custom_query}
-        ]
-    )
-    return response.choices[0].message.content
-
-# Load the dataset
 df = load_data()
 
 # Streamlit Interface
@@ -64,6 +39,7 @@ st.title("AI-Powered Healthcare Predictions")
 sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
+# Analysis Type Section
 if sidebar_selection == "Select Analysis Type":
     prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
         "Total Cost Over Time",
@@ -113,6 +89,7 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
+# AI-Powered Prediction Section
 elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
     prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using AI", "Custom Analysis with AI"])
@@ -124,8 +101,14 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         if not df.empty:
             st.write(df.head())
             if st.button("Generate Forecast"):
-                forecast_result = forecast_data_with_ai(df, metric, forecast_period)
-                st.write("AI Forecast Result:", forecast_result)
+                try:
+                    forecast_result = forecast_data_with_ai(df, metric, forecast_period)
+                    if forecast_result:
+                        st.write("AI Forecast Result:", forecast_result)
+                    else:
+                        st.error("Failed to generate forecast.")
+                except Exception as e:
+                    st.error(f"Error generating forecast: {e}")
 
     elif prediction_option == "Custom Analysis with AI":
         user_query = st.text_area("Enter Custom Analysis Query")
@@ -138,3 +121,37 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     st.write(analysis_result)
                 except Exception as e:
                     st.error(f"Error: {e}")
+
+# Functions for AI Forecasting
+def generate_forecast_prompt(df, metric, forecast_period):
+    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided, which includes columns like service_from_date, paid_amount, employee_gender, diagnosis_1_code_description, and employee_id."
+    return prompt
+
+def forecast_data_with_ai(df, metric, forecast_period):
+    try:
+        prompt = generate_forecast_prompt(df, metric, forecast_period)
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for healthcare cost forecasting."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        st.error(f"Error generating forecast: {e}")
+        return None
+
+def custom_analysis_with_ai(custom_query):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for healthcare analysis."},
+                {"role": "user", "content": custom_query}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error with custom analysis AI: {e}")
+        return None
