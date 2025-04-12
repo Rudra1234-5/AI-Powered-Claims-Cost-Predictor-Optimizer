@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.express as px
 from azure.ai.openai import OpenAIClient
 from azure.core.credentials import AzureKeyCredential
+st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Fetch OpenAI API keys and endpoint from secrets.toml
 openai_api_key = st.secrets["api_key"]
