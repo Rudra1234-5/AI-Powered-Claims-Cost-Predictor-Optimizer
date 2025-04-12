@@ -5,4 +5,12 @@ plotly
 streamlit-chat
 
 
-prophet==1.0.1  
+numpy==1.23.5
+
+
+fbprophet==0.7.1
+pystan==2.19.1.1
+
+
+azure-core==1.29.4
+azure-ai-openai==1.0.0b5
