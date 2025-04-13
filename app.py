@@ -1,16 +1,16 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from azure.ai.openai import OpenAIClient
-from azure.core.credentials import AzureKeyCredential
+# from azure.ai.openai import OpenAIClient
+# from azure.core.credentials import AzureKeyCredential
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
-# Fetch OpenAI API keys and endpoint from secrets.toml
-openai_api_key = st.secrets["api_key"]
-openai_api_base = st.secrets["azure_endpoint"]
+# # Fetch OpenAI API keys and endpoint from secrets.toml
+# openai_api_key = st.secrets["api_key"]
+# openai_api_base = st.secrets["azure_endpoint"]
 
-# Azure OpenAI client setup
-client = OpenAIClient(endpoint=openai_api_base, credential=AzureKeyCredential(openai_api_key))
+# # Azure OpenAI client setup
+# client = OpenAIClient(endpoint=openai_api_base, credential=AzureKeyCredential(openai_api_key))
 
 # Load data from DBFS path or mock data for testing
 def load_data():
