@@ -6,12 +6,6 @@ from openai import AzureOpenAI
 # from azure.core.credentials import AzureKeyCredential
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
-# # Fetch OpenAI API keys and endpoint from secrets.toml
-# openai_api_key = st.secrets["api_key"]
-# openai_api_base = st.secrets["azure_endpoint"]
-
-# # Azure OpenAI client setup
-# client = OpenAIClient(endpoint=openai_api_base, credential=AzureKeyCredential(openai_api_key))
 client = AzureOpenAI(
     api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
     api_version="2024-10-21",
@@ -33,6 +27,10 @@ def load_data():
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
+
+
+
+
 
 # Functions for AI Forecasting
 def generate_forecast_prompt(df, metric, forecast_period):
