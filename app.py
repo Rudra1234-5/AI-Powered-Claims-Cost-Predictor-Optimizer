@@ -29,6 +29,37 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
+# Functions for AI Forecasting
+def generate_forecast_prompt(df, metric, forecast_period):
+    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided."
+    return prompt
+
+def forecast_data_with_ai(df, metric, forecast_period):
+    try:
+        prompt = generate_forecast_prompt(df, metric, forecast_period)
+        response = client.get_completions(
+            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
+            prompt=prompt,
+            max_tokens=1000
+        )
+        return response.choices[0].text
+    except Exception as e:
+        st.error(f"Error generating forecast: {e}")
+        return None
+
+def custom_analysis_with_ai(custom_query):
+    try:
+        response = client.get_completions(
+            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
+            prompt=custom_query,
+            max_tokens=1000
+        )
+        return response.choices[0].text
+    except Exception as e:
+        st.error(f"Error with custom analysis AI: {e}")
+        return None
+
+
 df = load_data()
 
 # Streamlit Interface
@@ -121,32 +152,4 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-# Functions for AI Forecasting
-def generate_forecast_prompt(df, metric, forecast_period):
-    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided."
-    return prompt
 
-def forecast_data_with_ai(df, metric, forecast_period):
-    try:
-        prompt = generate_forecast_prompt(df, metric, forecast_period)
-        response = client.get_completions(
-            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
-            prompt=prompt,
-            max_tokens=1000
-        )
-        return response.choices[0].text
-    except Exception as e:
-        st.error(f"Error generating forecast: {e}")
-        return None
-
-def custom_analysis_with_ai(custom_query):
-    try:
-        response = client.get_completions(
-            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
-            prompt=custom_query,
-            max_tokens=1000
-        )
-        return response.choices[0].text
-    except Exception as e:
-        st.error(f"Error with custom analysis AI: {e}")
-        return None
