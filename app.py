@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from openai import AzureOpenAI
 # from azure.ai.openai import OpenAIClient
 # from azure.core.credentials import AzureKeyCredential
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
@@ -11,7 +12,11 @@ st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # # Azure OpenAI client setup
 # client = OpenAIClient(endpoint=openai_api_base, credential=AzureKeyCredential(openai_api_key))
-
+client = AzureOpenAI(
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
+    api_version="2024-10-21",
+    azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+    )
 # Load data from DBFS path or mock data for testing
 def load_data():
     try:
@@ -49,12 +54,8 @@ def forecast_data_with_ai(df, metric, forecast_period):
 
 def custom_analysis_with_ai(custom_query):
     try:
-        response = client.get_completions(
-            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
-            prompt=custom_query,
-            max_tokens=1000
-        )
-        return response.choices[0].text
+        response = client.chat.completions.create(model="gpt-4o-mini",messages=[{"role": "system", "content": "You are a helpful assistant for healthcare analysis."},{"role": "user", "content": custom_query}])
+        return response.choices[0].message.content
     except Exception as e:
         st.error(f"Error with custom analysis AI: {e}")
         return None
