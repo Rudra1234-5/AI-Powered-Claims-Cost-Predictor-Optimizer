@@ -2,8 +2,10 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from openai import AzureOpenAI
-# from azure.ai.openai import OpenAIClient
-# from azure.core.credentials import AzureKeyCredential
+
+from prophet import Prophet
+from prophet.plot import plot_plotly
+import plotly.graph_objects as go
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 client = AzureOpenAI(
@@ -11,36 +13,10 @@ client = AzureOpenAI(
     api_version="2024-10-21",
     azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
     )
-# Load data from DBFS path or mock data for testing
-def load_data():
-    try:
-        data = {
-            "service_from_date": ["2025-01-01", "2025-02-01", "2025-03-01"],
-            "paid_amount": [1000, 1200, 1100],
-            "employee_gender": ["M", "F", "M"],
-            "diagnosis_1_code_description": ["Flu", "Cold", "Flu"],
-            "employee_id": [1, 2, 3]
-        }
-        df = pd.DataFrame(data)
-        df["service_from_date"] = pd.to_datetime(df["service_from_date"])
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
-import pandas as pd
-import streamlit as st
-import plotly.express as px
-from openai import AzureOpenAI
-# from azure.ai.openai import OpenAIClient
-# from azure.core.credentials import AzureKeyCredential
-st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
-client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
-    api_version="2024-10-21",
-    azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
-    )
-# Load data from DBFS path or mock data for testing
+
+
+# Function to load data
 def load_data():
     try:
         data = {
@@ -57,41 +33,34 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-
-
-
-
-# Functions for AI Forecasting
-def generate_forecast_prompt(df, metric, forecast_period):
-    prompt = f"Forecast the {metric} for the next {forecast_period} months based on the dataset provided."
-    return prompt
-
-def forecast_data_with_ai(df, metric, forecast_period):
+# Function to forecast data using Prophet
+def forecast_data_with_prophet(df, metric, forecast_period):
     try:
-        prompt = generate_forecast_prompt(df, metric, forecast_period)
-        response = client.get_completions(
-            deployment_id="gpt-4",  # Replace with your Azure GPT deployment ID
-            prompt=prompt,
-            max_tokens=1000
-        )
-        return response.choices[0].text
+        # Prepare data for Prophet
+        df_prophet = df[["service_from_date", metric]].rename(columns={"service_from_date": "ds", metric: "y"})
+        
+        # Initialize and fit the Prophet model
+        model = Prophet()
+        model.fit(df_prophet)
+        
+        # Create future dataframe
+        future = model.make_future_dataframe(periods=forecast_period, freq='M')
+        
+        # Forecast
+        forecast = model.predict(future)
+        
+        # Plot forecast
+        fig = plot_plotly(model, forecast)
+        st.plotly_chart(fig)
+        
+        # Display forecasted data
+        st.subheader("Forecasted Data")
+        st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
-        return None
 
-def custom_analysis_with_ai(custom_query):
-    try:
-        response = client.chat.completions.create(model="gpt-4o-mini",messages=[{"role": "system", "content": "You are a helpful assistant for healthcare analysis."},{"role": "user", "content": custom_query}])
-        return response.choices[0].message.content
-    except Exception as e:
-        st.error(f"Error with custom analysis AI: {e}")
-        return None
-
-
+# Load data
 df = load_data()
-
-# Streamlit Interface
-st.title("AI-Powered Healthcare Predictions")
 
 # Sidebar Navigation
 sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
@@ -150,35 +119,17 @@ if sidebar_selection == "Select Analysis Type":
 # AI-Powered Prediction Section
 elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using AI", "Custom Analysis with AI"])
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet"])
 
-    if prediction_option == "Forecast Data using AI":
+    if prediction_option == "Forecast Data using Prophet":
         metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
         forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
 
         if not df.empty:
             st.write(df.head())
             if st.button("Generate Forecast"):
-                try:
-                    forecast_result = forecast_data_with_ai(df, metric, forecast_period)
-                    if forecast_result:
-                        st.write("AI Forecast Result:", forecast_result)
-                    else:
-                        st.error("Failed to generate forecast.")
-                except Exception as e:
-                    st.error(f"Error generating forecast: {e}")
+                forecast_data_with_prophet(df, metric, forecast_period)
 
-    elif prediction_option == "Custom Analysis with AI":
-        user_query = st.text_area("Enter Custom Analysis Query")
-
-        if st.button("Ask AI") and user_query:
-            with st.spinner("Thinking..."):
-                try:
-                    analysis_result = custom_analysis_with_ai(user_query)
-                    st.success("AI Response:")
-                    st.write(analysis_result)
-                except Exception as e:
-                    st.error(f"Error: {e}")
 
 
 
