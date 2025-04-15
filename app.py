@@ -158,9 +158,12 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                             tmp_path = tmp.name
 
                         output_buffer = StringIO()
-                        with redirect_stdout(output_buffer):
-                            exec(python_script, {"df": df})
-
+                        # Preprocess df before execution
+                    try:
+                        df["service_year_month"] = pd.to_datetime(df["service_year_month"])
+                    except Exception as e:
+                        st.warning(f"Could not convert service_year_month to datetime: {e}")
+                    
                         output = output_buffer.getvalue()
                         st.code(output or "✅ Executed successfully")
                     except Exception as e:
