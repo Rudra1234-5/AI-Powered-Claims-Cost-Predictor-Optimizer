@@ -174,3 +174,26 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     st.info("No Python code detected.")
             except Exception as e:
                 st.error(f"Error: {e}")
+
+        df.rename(columns={"Date": "ds", "Cost": "y"}, inplace=True)
+        df['ds'] = pd.to_datetime(df['ds'], errors='coerce')
+        df = df.dropna(subset=['ds', 'y'])  # Clean data
+        
+        if df.empty:
+            st.warning("The dataset is empty after cleaning. Please upload valid data.")
+        else:
+            m = Prophet()
+            m.fit(df)
+        
+            future = m.make_future_dataframe(periods=30)
+            forecast = m.predict(future)
+        
+            st.subheader("📈 Forecasted Healthcare Costs (Next 30 Days)")
+            st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(30))
+        
+            st.subheader("📊 Forecast Plot")
+            fig = px.line(forecast, x='ds', y='yhat', title="Forecasted Healthcare Cost")
+            fig.add_scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', name='Upper Bound', line=dict(dash='dot'))
+            fig.add_scatter(x=forecast['ds'], y=forecast['yhat_lower'], mode='lines', name='Lower Bound', line=dict(dash='dot'))
+            st.plotly_chart(fig, use_container_width=True)
+
