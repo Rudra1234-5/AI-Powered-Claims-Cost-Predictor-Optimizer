@@ -188,3 +188,15 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     st.info("No Python code detected.")
             except Exception as e:
                 st.error(f"Error: {e}")
+#aDITI
+   # Execute the generated code safely
+        local_vars = {}
+        try:
+            exec(code, {}, local_vars)
+            if 'df' in local_vars and isinstance(local_vars['df'], pd.DataFrame):
+                st.success("Here's your table:")
+                st.dataframe(local_vars['df'])
+            else:
+                st.warning("No DataFrame named 'df' was created in the code.")
+        except Exception as e:
+            st.error(f"Error executing code: {e}")
