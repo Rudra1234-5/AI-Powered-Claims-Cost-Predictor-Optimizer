@@ -27,6 +27,35 @@ def load_data():
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+from openai import AzureOpenAI
+# from azure.ai.openai import OpenAIClient
+# from azure.core.credentials import AzureKeyCredential
+st.title("AI-Powered Claims Cost Predictor & Optimizer")
+
+client = AzureOpenAI(
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
+    api_version="2024-10-21",
+    azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+    )
+# Load data from DBFS path or mock data for testing
+def load_data():
+    try:
+        data = {
+            "service_from_date": ["2025-01-01", "2025-02-01", "2025-03-01"],
+            "paid_amount": [1000, 1200, 1100],
+            "employee_gender": ["M", "F", "M"],
+            "diagnosis_1_code_description": ["Flu", "Cold", "Flu"],
+            "employee_id": [1, 2, 3]
+        }
+        df = pd.DataFrame(data)
+        df["service_from_date"] = pd.to_datetime(df["service_from_date"])
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
 
 
 
@@ -150,5 +179,9 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     st.write(analysis_result)
                 except Exception as e:
                     st.error(f"Error: {e}")
+
+
+
+
 
 
