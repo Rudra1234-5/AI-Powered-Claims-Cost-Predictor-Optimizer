@@ -167,28 +167,20 @@ Use `from prophet import Prophet` for forecasts. Plot with `st.pyplot()` or `st.
                     st.info("No Bash code detected.")
 
                 if python_code:
-                    st.markdown("### 🐍 Executing Python")
-                    try:
-                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
-                            tmp.write(python_code.group(1).encode())
-                            tmp_path = tmp.name
+    st.markdown("### 🐍 Executing Python")
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+            tmp.write(python_code.group(1).encode())
+            tmp_path = tmp.name
 
-                        output_buffer = StringIO()
-                        with redirect_stdout(output_buffer):
-                            exec(python_code.group(1), {})
+        output_buffer = StringIO()
+        with redirect_stdout(output_buffer):
+            exec(python_code.group(1), {"df": df.copy()})  # <--- FIXED HERE
 
-                        output = output_buffer.getvalue()
-                        st.code(output or "✅ Executed successfully")
+        output = output_buffer.getvalue()
+        st.code(output or "✅ Executed successfully")
 
-                        # Show generated DataFrame if available
-                        if 'df' in locals() and isinstance(df, pd.DataFrame):
-                            st.dataframe(df)
-
-                    except Exception as e:
-                        st.error(f"Python error: {str(e)}")
-                    finally:
-                        os.remove(tmp_path)
-                else:
-                    st.info("No Python code detected.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+    except Exception as e:
+        st.error(f"Python error: {str(e)}")
+    finally:
+        os.remove(tmp_path)
