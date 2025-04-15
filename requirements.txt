@@ -4,5 +4,5 @@ matplotlib
 plotly
 streamlit-chat
 openai
-prophet==1.0
+prophet
 scikit-learn
