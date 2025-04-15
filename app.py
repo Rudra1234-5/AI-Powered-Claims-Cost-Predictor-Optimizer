@@ -25,7 +25,7 @@ client = AzureOpenAI(
 
 def load_data():
     try:
-        df = pd.read_csv("Gen_AI_Sample_data.csv")
+        df = pd.read_csv("Gen_AI_sample_data.csv")
         df.columns = df.columns.str.lower().str.strip()
         df["service_year_month"] = pd.to_datetime(df["service_year_month"])
         return df
