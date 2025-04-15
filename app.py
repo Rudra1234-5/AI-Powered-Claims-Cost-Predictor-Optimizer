@@ -168,23 +168,24 @@ Use `from prophet import Prophet` for forecasts. Plot with `st.pyplot()` or `st.
 
                 if python_code:
                     st.markdown("### 🐍 Executing Python")
-                        try:
-                            python_script = python_code.group(1).strip()
-                    
-                            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
-                                tmp.write(python_script.encode())
-                                tmp_path = tmp.name
-                    
-                            output_buffer = StringIO()
-                            with redirect_stdout(output_buffer):
-                                # Pass the original DataFrame into the GPT's code execution scope
-                                exec(python_script, {"df": df.copy(), "pd": pd, "st": st, "px": px})
-                    
-                            output = output_buffer.getvalue()
-                            st.code(output or "✅ Executed successfully")
-                    
-                        except Exception as e:
-                            st.error(f"Python error: {str(e)}")
-                    
-                        finally:
-                            os.remove(tmp_path)
+                    try:
+                        python_script = python_code.group(1).strip()
+                
+                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                            tmp.write(python_script.encode())
+                            tmp_path = tmp.name
+                
+                        output_buffer = StringIO()
+                        with redirect_stdout(output_buffer):
+                            # Pass the original DataFrame into the GPT's code execution scope
+                            exec(python_script, {"df": df.copy(), "pd": pd, "st": st, "px": px})
+                
+                        output = output_buffer.getvalue()
+                        st.code(output or "✅ Executed successfully")
+                
+                    except Exception as e:
+                        st.error(f"Python error: {str(e)}")
+                
+                    finally:
+                        os.remove(tmp_path)
+
