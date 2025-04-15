@@ -73,7 +73,7 @@ if sidebar_selection == "Select Analysis Type":
         if prediction_type == "Total Cost Over Time":
             df_grouped = df.groupby(df["service_year_month"].dt.to_period("M")).sum(numeric_only=True).reset_index()
             df_grouped["service_year_month"] = df_grouped["service_year_month"].astype(str)
-            fig = px.line(df_grouped, x="service_year_month", y="copay_amount", title="Total Paid Amount Over Time")
+            fig = px.line(df_grouped, x="service_year_month", y="paid_amount", title="Total Paid Amount Over Time")
             st.plotly_chart(fig)
 
         elif prediction_type == "Gender-wise Cost Distribution":
