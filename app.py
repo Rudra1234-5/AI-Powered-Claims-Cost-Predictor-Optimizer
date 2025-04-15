@@ -17,7 +17,8 @@ client = AzureOpenAI(
 
 def load_data():
     try:
-        df = pd.read_csv("Gen_AI (5) 1.csv")
+        path = "https://github.com/Rudra1234-5/AI-Powered-Claims-Cost-Predictor-Optimizer/blob/main/Gen_AI%20(5)%201.csv"
+        df = pd.read_csv(path)
         df.columns = df.columns.str.lower().str.strip()
         df["service_from_date"] = pd.to_datetime(df["service_from_date"])
         return df
