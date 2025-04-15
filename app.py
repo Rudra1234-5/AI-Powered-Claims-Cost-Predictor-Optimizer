@@ -174,4 +174,5 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     st.info("No Python code detected.")
             except Exception as e:
                 st.error(f"Error: {e}")
-
+                
+        print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']])
