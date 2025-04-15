@@ -175,4 +175,4 @@ elif sidebar_selection == "Ask Healthcare Predictions":
             except Exception as e:
                 st.error(f"Error: {e}")
                 
-        print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']])
+            print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']])
