@@ -117,7 +117,7 @@ if sidebar_selection == "Select Analysis Type":
 # AI-Powered Prediction Section
 elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet"])
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
 
     if prediction_option == "Forecast Data using Prophet":
         metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
@@ -128,5 +128,17 @@ elif sidebar_selection == "Ask Healthcare Predictions":
             if st.button("Generate Forecast"):
                 forecast_data_with_prophet(df, metric, forecast_period)
 
-# Placeholder for chatbot integration
-#
+    elif analysis_type == "Chat with AI":
+        st.subheader("Ask the AI Assistant")
+        user_question = st.text_area("Type your question about the data:")
+        if st.button("Ask") and user_question:
+            try:
+                context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
+                messages = [
+                    {"role": "system", "content": context},
+                    {"role": "user", "content": user_question}
+                ]
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+                st.write(response.choices[0].message.content)
+            except Exception as e:
+                st.error(f"Error: {e}")
