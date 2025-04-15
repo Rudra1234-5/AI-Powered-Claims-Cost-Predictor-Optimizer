@@ -19,7 +19,7 @@ def load_data():
     try:
         df = pd.read_csv("Gen_AI (5) 1.csv")
         df.columns = df.columns.str.lower().str.strip()
-        df["service_from_date"] = pd.to_datetime(df["service_from_date"])
+        df["service_year_month"] = pd.to_datetime(df["service_year_month"])
         return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -29,7 +29,7 @@ def load_data():
 def forecast_data_with_prophet(df, metric, forecast_period):
     try:
         # Prepare data for Prophet
-        df_prophet = df[["service_from_date", metric]].rename(columns={"service_from_date": "ds", metric: "y"})
+        df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
         
         # Initialize and fit the Prophet model
         model = Prophet()
@@ -71,9 +71,9 @@ if sidebar_selection == "Select Analysis Type":
 
     if not df.empty:
         if prediction_type == "Total Cost Over Time":
-            df_grouped = df.groupby(df["service_from_date"].dt.to_period("M")).sum(numeric_only=True).reset_index()
-            df_grouped["service_from_date"] = df_grouped["service_from_date"].astype(str)
-            fig = px.line(df_grouped, x="service_from_date", y="paid_amount", title="Total Paid Amount Over Time")
+            df_grouped = df.groupby(df["service_year_month"].dt.to_period("M")).sum(numeric_only=True).reset_index()
+            df_grouped["service_year_month"] = df_grouped["service_year_month"].astype(str)
+            fig = px.line(df_grouped, x="service_year_month", y="paid_amount", title="Total Paid Amount Over Time")
             st.plotly_chart(fig)
 
         elif prediction_type == "Gender-wise Cost Distribution":
@@ -87,7 +87,7 @@ if sidebar_selection == "Select Analysis Type":
             st.plotly_chart(fig)
 
         elif prediction_type == "Average Monthly Cost Per Employee":
-            df["month"] = df["service_from_date"].dt.to_period("M")
+            df["month"] = df["service_year_month"].dt.to_period("M")
             df_grouped = df.groupby(["month", "employee_id"])["paid_amount"].sum().reset_index()
             df_avg = df_grouped.groupby("month")["paid_amount"].mean().reset_index()
             df_avg["month"] = df_avg["month"].astype(str)
@@ -97,7 +97,7 @@ if sidebar_selection == "Select Analysis Type":
         elif prediction_type == "Diagnosis Cost Trend Over Time":
             top_diagnoses = df["diagnosis_1_code_description"].value_counts().nlargest(5).index
             df_filtered = df[df["diagnosis_1_code_description"].isin(top_diagnoses)]
-            df_filtered["month"] = df_filtered["service_from_date"].dt.to_period("M")
+            df_filtered["month"] = df_filtered["service_year_month"].dt.to_period("M")
             df_grouped = df_filtered.groupby(["month", "diagnosis_1_code_description"])["paid_amount"].sum().reset_index()
             df_grouped["month"] = df_grouped["month"].astype(str)
             fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis Cost Trend Over Time")
