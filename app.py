@@ -128,7 +128,7 @@ elif sidebar_selection == "Ask Healthcare Predictions":
             if st.button("Generate Forecast"):
                 forecast_data_with_prophet(df, metric, forecast_period)
 
-    elif analysis_type == "Chat with AI":
+    elif prediction_option == "Chat with AI":
         st.subheader("Ask the AI Assistant")
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
