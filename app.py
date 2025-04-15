@@ -25,7 +25,7 @@ client = AzureOpenAI(
 
 def load_data():
     try:
-        df = pd.read_csv("Gen_AI (5) 1 (1).csv")
+        df = pd.read_csv("Gen_AI_Sample_data.csv")
         df.columns = df.columns.str.lower().str.strip()
         df["service_year_month"] = pd.to_datetime(df["service_year_month"])
         return df
@@ -135,7 +135,7 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet from prophet."
+                context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet from prophet. Use the file path for the csv as Gen_AI_Sample_data csv"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
