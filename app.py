@@ -2,21 +2,23 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from openai import AzureOpenAI
-
 from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
+
+# Set Streamlit page configuration
+st.set_page_config(page_title="AI-Powered Claims Cost Predictor & Optimizer", layout="wide")
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
+# Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
-    azure_endpoint = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
-    )
-
-
+    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+)
 
 # Function to load data
+@st.cache_data
 def load_data():
     try:
         data = {
@@ -59,11 +61,38 @@ def forecast_data_with_prophet(df, metric, forecast_period):
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
 
+# Function to handle chatbot interaction
+def chatbot_interface():
+    st.subheader("💬 Chat with AI Assistant")
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    user_input = st.text_input("You:", key="user_input")
+    if st.button("Send"):
+        if user_input:
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-35-turbo",
+                    messages=st.session_state.chat_history
+                )
+                assistant_reply = response.choices[0].message.content
+                st.session_state.chat_history.append({"role": "assistant", "content": assistant_reply})
+            except Exception as e:
+                st.error(f"Error communicating with AI: {e}")
+
+    # Display chat history
+    for message in st.session_state.chat_history:
+        if message["role"] == "user":
+            st.markdown(f"**You:** {message['content']}")
+        else:
+            st.markdown(f"**AI Assistant:** {message['content']}")
+
 # Load data
 df = load_data()
 
 # Sidebar Navigation
-sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
+sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions", "Chat with AI Assistant"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
 # Analysis Type Section
@@ -108,31 +137,6 @@ if sidebar_selection == "Select Analysis Type":
             df_filtered["month"] = df_filtered["service_from_date"].dt.to_period("M")
             df_grouped = df_filtered.groupby(["month", "diagnosis_1_code_description"])["paid_amount"].sum().reset_index()
             df_grouped["month"] = df_grouped["month"].astype(str)
-            fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis Cost Trend Over Time")
-            st.plotly_chart(fig)
-
-        elif prediction_type == "Employee-wise Cost Distribution":
-            df_grouped = df.groupby("employee_id")["paid_amount"].sum().sort_values(ascending=False).head(20).reset_index()
-            fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
-            st.plotly_chart(fig)
-
-# AI-Powered Prediction Section
-elif sidebar_selection == "Ask Healthcare Predictions":
-    st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet"])
-
-    if prediction_option == "Forecast Data using Prophet":
-        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
-        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
-
-        if not df.empty:
-            st.write(df.head())
-            if st.button("Generate Forecast"):
-                forecast_data_with_prophet(df, metric, forecast_period)
-
-
-
-
-
-
-
+            fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis
+::contentReference[oaicite:0]{index=0}
+ 
