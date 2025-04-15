@@ -17,14 +17,8 @@ client = AzureOpenAI(
 
 def load_data():
     try:
-        data = {
-            "service_from_date": ["2025-01-01", "2025-02-01", "2025-03-01"],
-            "paid_amount": [1000, 1200, 1100],
-            "employee_gender": ["M", "F", "M"],
-            "diagnosis_1_code_description": ["Flu", "Cold", "Flu"],
-            "employee_id": [1, 2, 3]
-        }
-        df = pd.DataFrame(data)
+        df = pd.read_csv("Gen_AI (5) 1.csv")
+        df.columns = df.columns.str.lower().str.strip()
         df["service_from_date"] = pd.to_datetime(df["service_from_date"])
         return df
     except Exception as e:
