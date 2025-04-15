@@ -4,8 +4,6 @@ import plotly.express as px
 from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
-import plotly.graph_objects as go
-
 import subprocess
 import tempfile
 import os
@@ -13,7 +11,6 @@ import sys
 from contextlib import redirect_stdout
 from io import StringIO
 import re
-import matplotlib.pyplot as plt
 
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
@@ -24,7 +21,6 @@ client = AzureOpenAI(
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
-# Load data
 def load_data():
     try:
         df = pd.read_csv("Gen_AI_sample_data.csv")
@@ -35,7 +31,6 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-# Forecasting using Prophet
 def forecast_data_with_prophet(df, metric, forecast_period):
     try:
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
@@ -43,28 +38,20 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         model.fit(df_prophet)
         future = model.make_future_dataframe(periods=forecast_period, freq='M')
         forecast = model.predict(future)
-
-        # Plot (plotly)
         fig = plot_plotly(model, forecast)
         st.plotly_chart(fig)
-
-        # Optional: also show matplotlib version
-        fig2 = model.plot(forecast)
-        st.pyplot(fig2)
-
         st.subheader("Forecasted Data")
         st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
 
-# Load the dataset
+# Load data
 df = load_data()
 
 # Sidebar Navigation
 sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
-# Analysis Section
 if sidebar_selection == "Select Analysis Type":
     prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
         "Total Cost Over Time",
@@ -114,7 +101,6 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
-# GPT Interaction Section
 elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
     prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
@@ -123,43 +109,39 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
         forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
 
-        if not df.empty and st.button("Generate Forecast"):
-            forecast_data_with_prophet(df, metric, int(forecast_period))
+        if not df.empty:
+            st.write(df.head())
+            if st.button("Generate Forecast"):
+                forecast_data_with_prophet(df, metric, forecast_period)
 
     elif prediction_option == "Chat with AI":
         st.subheader("Ask the AI Assistant")
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                context = f"""You are a helpful healthcare analyst. Here's a summary of the dataset:
-{df.head().to_string()}
-
-Columns include:
-- service_year_month: date of service
-- paid_amount: cost incurred
-- employee_gender: gender of employee
-- diagnosis_1_code_description: diagnosis info
-- employee_id: employee identifier
-
-Use `from prophet import Prophet` for forecasts. Plot with `st.pyplot()` or `st.plotly_chart()`. The dataset file is Gen_AI_sample_data.csv.
-"""
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figues as well"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
                 ]
                 response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+                st.write(response.choices[0].message.content)
+
                 content = response.choices[0].message.content
-                st.markdown("### 🤖 GPT Response")
+
+                st.markdown("### 🔧 GPT Output")
                 st.code(content)
 
-                # Bash + Python detection
                 bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
                 python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
 
                 if bash_code:
+                    bash_script = bash_code.group(1).strip()
                     st.markdown("### 🐚 Executing Bash")
                     try:
-                        bash_output = subprocess.check_output(bash_code.group(1), shell=True, stderr=subprocess.STDOUT, text=True)
+                        bash_output = subprocess.check_output(
+                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
+                        )
                         st.code(bash_output)
                     except subprocess.CalledProcessError as e:
                         st.error(f"Bash error:\n{e.output}")
@@ -170,22 +152,22 @@ Use `from prophet import Prophet` for forecasts. Plot with `st.pyplot()` or `st.
                     st.markdown("### 🐍 Executing Python")
                     try:
                         python_script = python_code.group(1).strip()
-                
                         with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
                             tmp.write(python_script.encode())
                             tmp_path = tmp.name
-                
+
                         output_buffer = StringIO()
                         with redirect_stdout(output_buffer):
-                            # Pass the original DataFrame into the GPT's code execution scope
                             exec(python_script, {"df": df.copy(), "pd": pd, "st": st, "px": px})
-                
+
                         output = output_buffer.getvalue()
                         st.code(output or "✅ Executed successfully")
-                
+
                     except Exception as e:
                         st.error(f"Python error: {str(e)}")
-                
                     finally:
                         os.remove(tmp_path)
+                else:
+                    st.info("No Python code detected.")
 
+            except Exception as e:
