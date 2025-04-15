@@ -4,10 +4,12 @@ import plotly.express as px
 from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
+import plotly.graph_objects as go
 
 import subprocess
 import tempfile
 import os
+import sys
 from contextlib import redirect_stdout
 from io import StringIO
 import re
@@ -45,8 +47,10 @@ def forecast_data_with_prophet(df, metric, forecast_period):
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
 
+# Load data
 df = load_data()
 
+# Sidebar Navigation
 sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
@@ -115,24 +119,19 @@ elif sidebar_selection == "Ask Healthcare Predictions":
     elif prediction_option == "Chat with AI":
         st.subheader("Ask the AI Assistant")
         user_question = st.text_area("Type your question about the data:")
-
         if st.button("Ask") and user_question:
             try:
-                context = (
-                    f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n"
-                    f"{df.head().to_string()}. If asked for future data forecast using Prophet, use 'from prophet import Prophet'. "
-                    f"Use the file path 'Gen_AI_sample_data.csv' for the dataset. Use st.pyplot(fig) to show figures as well."
-                )
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figues as well"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
                 ]
                 response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
                 content = response.choices[0].message.content
+
                 st.markdown("### 🔧 GPT Output")
                 st.code(content)
 
-                # Extract Bash and Python code
                 bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
                 python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
 
@@ -157,20 +156,21 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                             tmp.write(python_script.encode())
                             tmp_path = tmp.name
 
+                        try:
+                            df["service_year_month"] = pd.to_datetime(df["service_year_month"])
+                        except Exception as e:
+                            st.warning(f"Could not convert service_year_month to datetime: {e}")
+
                         output_buffer = StringIO()
-                        # Preprocess df before execution
-                    try:
-                        df["service_year_month"] = pd.to_datetime(df["service_year_month"])
-                    except Exception as e:
-                        st.warning(f"Could not convert service_year_month to datetime: {e}")
-                    
+                        with redirect_stdout(output_buffer):
+                            exec(python_script, {"df": df, "pd": pd})
+
                         output = output_buffer.getvalue()
                         st.code(output or "✅ Executed successfully")
                     except Exception as e:
                         st.error(f"Python error: {str(e)}")
                     finally:
-                        if os.path.exists(tmp_path):
-                            os.remove(tmp_path)
+                        os.remove(tmp_path)
                 else:
                     st.info("No Python code detected.")
             except Exception as e:
