@@ -135,7 +135,7 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet from prophet. Use the file path for the csv as Gen_AI_Sample_data csv"
+                context = f"You are a helpful analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet from prophet. Use the file path for the csv as Gen_AI_sample_data csv"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
