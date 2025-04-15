@@ -6,6 +6,14 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 
+import subprocess
+import tempfile
+import os
+import sys
+from contextlib import redirect_stdout
+from io import StringIO
+import re
+
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
@@ -134,5 +142,49 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                 ]
                 response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
                 st.write(response.choices[0].message.content)
+
+                content = response.choices[0].message.content
+                
+                st.markdown("### 🔧 GPT Output")
+                st.code(content)
+                
+                # Extract Bash and Python code
+                
+                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
+                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+                
+                if bash_code:
+                    bash_script = bash_code.group(1).strip()
+                    st.markdown("### 🐚 Executing Bash")
+                    try:
+                        bash_output = subprocess.check_output(
+                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
+                        )
+                        st.code(bash_output)
+                    except subprocess.CalledProcessError as e:
+                        st.error(f"Bash error:\n{e.output}")
+                else:
+                    st.info("No Bash code detected.")
+                
+                if python_code:
+                    python_script = python_code.group(1).strip()
+                    st.markdown("### 🐍 Executing Python")
+                    try:
+                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                            tmp.write(python_script.encode())
+                            tmp_path = tmp.name
+                
+                        output_buffer = StringIO()
+                        with redirect_stdout(output_buffer):
+                            exec(python_script, {})
+                
+                        output = output_buffer.getvalue()
+                        st.code(output or "✅ Executed successfully")
+                    except Exception as e:
+                        st.error(f"Python error: {str(e)}")
+                    finally:
+                        os.remove(tmp_path)
+                else:
+                    st.info("No Python code detected.")
             except Exception as e:
                 st.error(f"Error: {e}")
