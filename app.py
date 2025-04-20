@@ -40,6 +40,9 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         # Prepare the data for Prophet
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
         
+        # Convert PeriodDtype to Timestamp
+        df_prophet["ds"] = df_prophet["ds"].dt.to_timestamp()  # Convert period to timestamp
+        
         # Initialize the Prophet model without the 'monthly_seasonality' argument
         model = Prophet()  # Initialize Prophet model
         model.fit(df_prophet)  # Fit the model
