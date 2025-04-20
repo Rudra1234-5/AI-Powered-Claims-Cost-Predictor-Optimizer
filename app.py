@@ -120,7 +120,7 @@ Here's a preview of the dataset:
             st.write("Forecast generated successfully!")
 
             # Plot forecast
-            fig = plot_plotly(forecast)
+            fig = plot_plotly(forecast)  # Fixed issue: passing 'forecast' to plot_plotly()
             st.plotly_chart(fig)
 
             # Display dynamic insights: The AI will generate this based on the forecast results
