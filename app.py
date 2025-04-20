@@ -5,22 +5,16 @@ from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
-import subprocess
-import tempfile
-import os
-import sys
-from contextlib import redirect_stdout
-from io import StringIO
-import re
 
+# Set Streamlit page configuration
 st.set_page_config(page_title="AI-Powered Claims Cost Predictor & Optimizer", layout="wide")
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
+    api_key="YOUR_API_KEY",
     api_version="2024-10-21",
-    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+    azure_endpoint="https://YOUR_AZURE_ENDPOINT"
 )
 
 # Function to load data
@@ -131,6 +125,11 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
                 ]
-                response =
-::contentReference[oaicite:0]{index=0}
- 
+                response = client.chat.completions.create(
+                    model="gpt-35-turbo",
+                    messages=messages,
+                    temperature=0.7
+                )
+                st.write(response.choices[0].message.content)
+            except Exception as e:
+                st.error(f"Error communicating with AI: {e}")
