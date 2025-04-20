@@ -13,6 +13,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 import re
 
+st.set_page_config(page_title="AI-Powered Claims Cost Predictor & Optimizer", layout="wide")
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
@@ -22,6 +23,8 @@ client = AzureOpenAI(
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
+# Function to load data
+@st.cache_data
 def load_data():
     try:
         df = pd.read_csv("Gen_AI_sample_data.csv")
@@ -111,6 +114,23 @@ elif sidebar_selection == "Ask Healthcare Predictions":
 
     if prediction_option == "Forecast Data using Prophet":
         metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
-        forecast_period = st.number_input("Forecast
+        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
+
+        if not df.empty:
+            st.write(df.head())
+            if st.button("Generate Forecast"):
+                forecast_data_with_prophet(df, metric, forecast_period)
+
+    elif prediction_option == "Chat with AI":
+        st.subheader("Ask the AI Assistant")
+        user_question = st.text_area("Type your question about the data:")
+        if st.button("Ask") and user_question:
+            try:
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from prophet import Prophet. Use the file path for the csv as Gen_AI_sample_data.csv. Use st.plotly_chart(fig) to show figures as well."
+                messages = [
+                    {"role": "system", "content": context},
+                    {"role": "user", "content": user_question}
+                ]
+                response =
 ::contentReference[oaicite:0]{index=0}
  
