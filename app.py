@@ -1,148 +1,165 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from prophet import Prophet
-from prophet.plot import plot_plotly
 from openai import AzureOpenAI
+from prophet import Prophet
+import matplotlib.pyplot as plt
 import re
 import tempfile
 import os
 from io import StringIO
 from contextlib import redirect_stdout
 
-# --- Set up Streamlit layout ---
-st.set_page_config(layout="wide")
-st.title("🧠 AI-Powered Claims Cost Predictor & Optimizer")
-
-# --- Azure OpenAI Configuration ---
+# Initialize Azure OpenAI client with your keys
 client = AzureOpenAI(
     api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
-# --- Load and prepare data ---
-@st.cache_data
-def load_data():
-    df = pd.read_csv("Gen_AI_sample_data.csv")
-    df.columns = df.columns.str.lower().str.strip()
-    df["service_year_month"] = pd.to_datetime(df["service_year_month"])
-    return df
+# Sample Data (replace this with your actual data)
+df = pd.read_csv('Gen_AI_sample_data.csv')
 
-df = load_data()
+# Sidebar options
+sidebar_selection = st.sidebar.radio("Select a task", ["Ask AI for Forecast", "Explore Data", "Visualization", "Statistics", "Trends"])
 
-# --- Sidebar Navigation ---
-sidebar_selection = st.sidebar.radio("📍 Choose Section", ["Select Analysis Type", "Ask AI for Forecast"])
+def forecast_with_prophet(df, metric):
+    """
+    Generate forecast using the Prophet model.
+    """
+    try:
+        # Preparing data for Prophet
+        df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
+        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])
 
-# --- Section: Data Analysis ---
-if sidebar_selection == "Select Analysis Type":
-    st.header("📊 Claims Data Analysis")
-    analysis_type = st.sidebar.selectbox("Select Analysis", [
-        "Total Cost Over Time",
-        "Gender-wise Cost Distribution",
-        "Top Diagnosis by Cost",
-        "Average Monthly Cost Per Employee",
-        "Diagnosis Cost Trend Over Time",
-        "Employee-wise Cost Distribution"
-    ])
+        model = Prophet()
+        model.fit(df_prophet)
+        
+        # Make future predictions
+        future = model.make_future_dataframe(df_prophet, periods=12, freq='M')
+        forecast = model.predict(future)
 
-    if not df.empty:
-        if analysis_type == "Total Cost Over Time":
-            df_grouped = df.groupby(df["service_year_month"].dt.to_period("M")).sum(numeric_only=True).reset_index()
-            df_grouped["service_year_month"] = df_grouped["service_year_month"].dt.to_timestamp()
-            fig = px.line(df_grouped, x="service_year_month", y="paid_amount", title="Total Paid Amount Over Time")
-            st.plotly_chart(fig)
+        # Find the peak month
+        peak_month = forecast.loc[forecast['yhat'].idxmax(), ['ds', 'yhat']]
+        
+        # Plotting forecast
+        fig = model.plot(forecast)
+        
+        return peak_month, fig, forecast
+    except Exception as e:
+        st.error(f"Error running Prophet forecast: {e}")
+        return None, None, None
 
-        elif analysis_type == "Gender-wise Cost Distribution":
-            df_grouped = df.groupby("employee_gender")["paid_amount"].sum().reset_index()
-            fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost Distribution by Gender")
-            st.plotly_chart(fig)
 
-        elif analysis_type == "Top Diagnosis by Cost":
-            df_grouped = df.groupby("diagnosis_1_code_description")["paid_amount"].sum().nlargest(10).reset_index()
-            fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_1_code_description", orientation="h", title="Top 10 Diagnoses by Cost")
-            st.plotly_chart(fig)
+# Chat with AI Section
+if sidebar_selection == "Ask AI for Forecast":
+    st.subheader("Ask AI for Forecast")
 
-        elif analysis_type == "Average Monthly Cost Per Employee":
-            df["month"] = df["service_year_month"].dt.to_period("M")
-            df_grouped = df.groupby(["month", "employee_id"])["paid_amount"].sum().reset_index()
-            df_avg = df_grouped.groupby("month")["paid_amount"].mean().reset_index()
-            df_avg["month"] = df_avg["month"].dt.to_timestamp()
-            fig = px.line(df_avg, x="month", y="paid_amount", title="Average Monthly Cost Per Employee")
-            st.plotly_chart(fig)
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Ask about Data Trends", "Show Forecast", "Chat with AI"])
 
-        elif analysis_type == "Diagnosis Cost Trend Over Time":
-            top_diagnoses = df["diagnosis_1_code_description"].value_counts().nlargest(5).index
-            df_filtered = df[df["diagnosis_1_code_description"].isin(top_diagnoses)]
-            df_filtered["month"] = df_filtered["service_year_month"].dt.to_period("M")
-            df_grouped = df_filtered.groupby(["month", "diagnosis_1_code_description"])["paid_amount"].sum().reset_index()
-            df_grouped["month"] = df_grouped["month"].dt.to_timestamp()
-            fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis Cost Trend Over Time")
-            st.plotly_chart(fig)
+    if prediction_option == "Chat with AI":
+        st.subheader("Ask the AI Assistant")
 
-        elif analysis_type == "Employee-wise Cost Distribution":
-            df_grouped = df.groupby("employee_id")["paid_amount"].sum().nlargest(20).reset_index()
-            fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
-            st.plotly_chart(fig)
-
-# --- Section: Chat with AI ---
-elif sidebar_selection == "Ask AI for Forecast":
-    st.header("💬 AI Forecast Assistant")
-    user_question = st.text_area("Ask a forecasting question related to the data 👇", height=100)
-
-    if st.button("🔍 Ask AI"):
-        with st.spinner("Generating prediction..."):
+        # Collect user query
+        user_question = st.text_area("Type your question about the data:")
+        
+        if st.button("Ask") and user_question:
             try:
-                context = f"""
-You are a healthcare forecasting expert. Always use Prophet for predictions based on the user's CSV data.
-The file name is: 'Gen_AI_sample_data.csv'. Use the column 'service_year_month' for time and either 'allowed_amount' or 'paid_amount' for values.
-Always use `plot_plotly(model, forecast)` to display forecasts.
-Avoid math-heavy or hardcoded responses — keep it friendly and dynamic.
-Here is a sample of the dataset:
-{df.head(2).to_string()}
-"""
+                # Include dataset preview in context for OpenAI
+                context = f"You are a helpful healthcare analyst. Here's a dataset summary:\n\n{df.head().to_string()}. When asked about data trends or forecasts, use the Prophet model for predictions."
 
+                # Ask OpenAI with context and user question
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
                 ]
-
+                
+                # Query OpenAI model
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-4o-mini",  # or use another model if required
                     messages=messages
                 )
 
-                ai_reply = response.choices[0].message.content
-                st.markdown("### 🤖 AI Response")
-                st.write(ai_reply)
+                # Display response from AI
+                st.write(response.choices[0].message.content)
+                
+                # Process response to check for Python code or bash script
+                content = response.choices[0].message.content
+                
+                # Match Python or Bash code in response
+                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+                
+                if python_code:
+                    python_script = python_code.group(1).strip()
+                    st.markdown("### 🐍 Python Code:")
+                    with st.expander("Show Python Code"):
+                        st.code(python_script)
 
-                # Check for Python code block
-                code_match = re.search(r"```python\n(.*?)```", ai_reply, re.DOTALL)
-                if code_match:
-                    python_code = code_match.group(1)
+                    # Run Python Code upon request
+                    if st.button("Run Python Code"):
+                        try:
+                            # Using a temporary file to execute Python code
+                            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                                tmp.write(python_script.encode())
+                                tmp_path = tmp.name
 
-                    with st.expander("👁️ View Generated Code"):
-                        st.code(python_code)
+                            output_buffer = StringIO()
+                            with redirect_stdout(output_buffer):
+                                exec(python_script)
 
-                    with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp_file:
-                        tmp_file.write(python_code.encode())
-                        temp_file_path = tmp_file.name
-
-                    output_buffer = StringIO()
-                    try:
-                        with redirect_stdout(output_buffer):
-                            exec(python_code, globals())
-                        output_result = output_buffer.getvalue()
-                        if output_result:
-                            st.text_area("📤 Code Output", output_result, height=200)
-                        else:
-                            st.success("✅ Forecast generated successfully.")
-                    except Exception as exec_error:
-                        st.error(f"Execution error: {exec_error}")
-                    finally:
-                        os.remove(temp_file_path)
+                            output = output_buffer.getvalue()
+                            st.code(output or "✅ Code executed successfully")
+                        except Exception as e:
+                            st.error(f"Python error: {e}")
+                        finally:
+                            os.remove(tmp_path)
                 else:
-                    st.info("⚠️ No code was detected in AI response.")
+                    st.info("No Python code detected.")
+                
+                # Check if user is asking for forecasting
+                if "forecast" in user_question.lower():
+                    peak_month, fig, forecast = forecast_with_prophet(df, "allowed_amount")
+                    
+                    if peak_month is not None:
+                        st.subheader(f"Predicted Peak Month: {peak_month['ds'].strftime('%B %Y')}")
+                        st.write(f"Predicted Peak Value: {peak_month['yhat']:.2f}")
+                        st.plotly_chart(fig)
+                        st.write(forecast.tail())  # Show last few forecasted values
 
-            except Exception as api_error:
-                st.error(f"Error communicating with OpenAI: {api_error}")
+            except Exception as e:
+                st.error(f"Error: {e}")
+    
+# Explore Data Section
+elif sidebar_selection == "Explore Data":
+    st.subheader("Explore the Data")
+    st.dataframe(df)
+
+# Visualization Section
+elif sidebar_selection == "Visualization":
+    st.subheader("Data Visualization")
+
+    # Show the first few rows of the dataset
+    st.write("Here is the first few rows of the data:")
+    st.write(df.head())
+
+    # Visualization options
+    chart_type = st.selectbox("Select a chart type", ["Line Chart", "Bar Chart"])
+    
+    if chart_type == "Line Chart":
+        st.line_chart(df['allowed_amount'])
+    elif chart_type == "Bar Chart":
+        st.bar_chart(df['allowed_amount'])
+
+# Statistics Section
+elif sidebar_selection == "Statistics":
+    st.subheader("Data Statistics")
+
+    st.write("Basic statistics for the dataset:")
+    st.write(df.describe())
+
+# Trends Section
+elif sidebar_selection == "Trends":
+    st.subheader("Trends Analysis")
+    
+    # Add your trends analysis logic here
+    # Example: Identify trends in data
+    st.write("Trends are analyzed based on historical data trends.")
