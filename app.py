@@ -46,7 +46,7 @@ def forecast_data(df, metric, period):
     model.fit(df_prophet)
     future = model.make_future_dataframe(periods=period, freq='M')
     forecast = model.predict(future)
-    return forecast
+    return forecast, model
 
 # Main application logic
 
@@ -116,11 +116,11 @@ Here's a preview of the dataset:
 
             # Start the actual forecast generation here:
             st.subheader("🔮 Forecasting Analysis")
-            forecast = forecast_data(df, "paid_amount", 12)  # Forecast for 12 months ahead
+            forecast, model = forecast_data(df, "paid_amount", 12)  # Forecast for 12 months ahead
             st.write("Forecast generated successfully!")
 
             # Plot forecast
-            fig = plot_plotly(forecast)  # Ensure forecast is passed to plot_plotly() properly
+            fig = plot_plotly(model, forecast)  # Make sure to pass model and forecast to plot_plotly
             st.plotly_chart(fig)
 
             # Display dynamic insights: The AI will generate this based on the forecast results
