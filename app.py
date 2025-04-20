@@ -1,18 +1,25 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
+from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
-import openai
+import plotly.graph_objects as go
+import subprocess
+import tempfile
+import os
+import sys
+from contextlib import redirect_stdout
+from io import StringIO
+import re
 
-# Set OpenAI API keys and endpoint (with your provided API key, version, and endpoint)
-openai.api_key = "8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS"
-openai.api_base = "https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"  # Your Azure endpoint
-openai.api_version = "2024-10-21"  # Your API version
-
-# Streamlit page configuration
+# Set the title for your Streamlit app
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
+
+api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
+    api_version="2024-10-21",
+    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+)
 
 # Function to load data
 def load_data():
@@ -49,11 +56,6 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         # Display the forecast data for the future period
         st.subheader("Forecasted Data")
         st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
-        
-        # Extract peak month
-        peak_month = forecast.loc[forecast['yhat'].idxmax(), ['ds', 'yhat']]
-        st.write(f"Predicted Peak Month: {peak_month['ds'].strftime('%B %Y')} with an estimated value of {peak_month['yhat']:,.2f}")
-        
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
 
@@ -61,7 +63,7 @@ def forecast_data_with_prophet(df, metric, forecast_period):
 df = load_data()
 
 # Sidebar Navigation
-sidebar_options = ["Select Analysis Type", "Ask AI for Forecast"]
+sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
 # Analysis Type Section
@@ -114,13 +116,73 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
-# AI-Powered Forecasting Section (Optional)
-elif sidebar_selection == "Ask AI for Forecast":
-    metric = st.sidebar.selectbox("Select Metric for Forecast", ["paid_amount", "allowed_amount"])
-    forecast_period = st.sidebar.number_input("Number of months for forecast", min_value=1, max_value=24, value=12)
-    
-    if st.button("Generate Forecast"):
-        st.write("Generating forecast...")
-        st.spinner("Processing... Please wait.")  # Spinner message
-        forecast_data_with_prophet(df, metric, forecast_period)
-        st.success("Forecast generation complete!")
+# AI-Powered Prediction Section
+elif sidebar_selection == "Ask Healthcare Predictions":
+    st.subheader("Ask Healthcare Predictions")
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
+
+    if prediction_option == "Forecast Data using Prophet":
+        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
+        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
+
+        if not df.empty:
+            st.write(df.head())
+            if st.button("Generate Forecast"):
+                forecast_data_with_prophet(df, metric, forecast_period)
+
+    elif prediction_option == "Chat with AI":
+        st.subheader("Ask the AI Assistant")
+        user_question = st.text_area("Type your question about the data:")
+        if st.button("Ask") and user_question:
+            try:
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figures as well"
+                messages = [
+                    {"role": "system", "content": context},
+                    {"role": "user", "content": user_question}
+                ]
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+                st.write(response.choices[0].message.content)
+
+                content = response.choices[0].message.content
+
+                st.markdown("### 🔧 GPT Output")
+                st.code(content)
+
+                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
+                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+
+                if bash_code:
+                    bash_script = bash_code.group(1).strip()
+                    st.markdown("### 🐚 Executing Bash")
+                    try:
+                        bash_output = subprocess.check_output(
+                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
+                        )
+                        st.code(bash_output)
+                    except subprocess.CalledProcessError as e:
+                        st.error(f"Bash error:\n{e.output}")
+                else:
+                    st.info("No Bash code detected.")
+
+                if python_code:
+                    python_script = python_code.group(1).strip()
+                    st.markdown("### 🐍 Executing Python")
+                    try:
+                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                            tmp.write(python_script.encode())
+                            tmp_path = tmp.name
+
+                        output_buffer = StringIO()
+                        with redirect_stdout(output_buffer):
+                            exec(python_script, {})
+
+                        output = output_buffer.getvalue()
+                        st.code(output or "✅ Executed successfully")
+                    except Exception as e:
+                        st.error(f"Python error: {str(e)}")
+                    finally:
+                        os.remove(tmp_path)
+                else:
+                    st.info("No Python code detected.")
+            except Exception as e:
+                st.error(f"Error: {e}")
