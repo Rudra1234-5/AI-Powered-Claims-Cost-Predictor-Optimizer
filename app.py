@@ -1,27 +1,27 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
+from openai import AzureOpenAI
 import re
 from io import StringIO
 import tempfile
 import os
 from contextlib import redirect_stdout
 
-# 🔹 Streamlit App Title
+# 🧠 Streamlit Title
 st.set_page_config(page_title="AI Claims Forecasting", layout="wide")
 st.title("🧠 AI-Powered Claims Cost Predictor & Optimizer")
 
-# 🔐 Azure OpenAI Client Setup (your keys)
+# 🔐 Azure OpenAI setup (with your provided key)
 client = AzureOpenAI(
     api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
-# 🔄 Load Data
+# 🔄 Load data
 @st.cache_data
 def load_data():
     try:
@@ -35,7 +35,11 @@ def load_data():
 
 df = load_data()
 
-# 🔮 Prophet Forecasting Function
+# 📊 Sidebar
+sidebar_options = ["Select Analysis Type", "Ask AI Forecast"]
+sidebar_selection = st.sidebar.selectbox("Choose an option", sidebar_options)
+
+# 📈 Forecast Function
 def forecast_data_with_prophet(df, metric, forecast_period):
     try:
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
@@ -45,18 +49,14 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         forecast = model.predict(future)
         fig = plot_plotly(model, forecast)
         st.plotly_chart(fig)
-        st.subheader("📈 Forecasted Data")
+        st.subheader("📊 Forecasted Values")
         st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
     except Exception as e:
-        st.error(f"Forecast error: {e}")
+        st.error(f"Forecasting error: {e}")
 
-# 🔀 Sidebar Options
-sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
-sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
-
-# 📊 Data Analysis Section
+# 📊 Analysis Section
 if sidebar_selection == "Select Analysis Type":
-    analysis_type = st.sidebar.selectbox("Select Analysis", [
+    analysis_type = st.sidebar.selectbox("Choose analysis", [
         "Total Cost Over Time", "Gender-wise Cost Distribution",
         "Top Diagnosis by Cost", "Average Monthly Cost Per Employee",
         "Diagnosis Cost Trend Over Time", "Employee-wise Cost Distribution"
@@ -71,7 +71,7 @@ if sidebar_selection == "Select Analysis Type":
 
         elif analysis_type == "Gender-wise Cost Distribution":
             df_grouped = df.groupby("employee_gender")["paid_amount"].sum().reset_index()
-            fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost Distribution by Gender")
+            fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost by Gender")
             st.plotly_chart(fig)
 
         elif analysis_type == "Top Diagnosis by Cost":
@@ -101,50 +101,47 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
-# 🤖 AI Forecast Chat Section
-elif sidebar_selection == "Ask Healthcare Predictions":
-    st.subheader("🤖 Ask Healthcare Forecasting Question")
-    user_question = st.text_area("Ask your forecasting question (e.g., 'Predict paid_amount for next 6 months')")
+# 🤖 AI Forecast Section
+elif sidebar_selection == "Ask AI Forecast":
+    st.subheader("🤖 Ask AI for Prophet Forecast")
+    user_question = st.text_area("Ask a time-series question (e.g., 'Forecast cost next 6 months')")
 
-    if st.button("Ask AI"):
+    if st.button("Ask AI") and user_question:
         try:
-            # GPT Prompt enforcing Prophet usage
-            context = f"""
-You are a forecasting expert using Python's `Prophet` for healthcare claim predictions in a Streamlit app.
+            prompt = f"""
+You are a healthcare forecasting assistant. 
 
-Rules:
-- Use only `Prophet` for time-series forecasting.
-- Data is already loaded as `df`, time column is `service_year_month`, target column is `paid_amount`.
-- Do not print, instead use `st.plotly_chart(fig)` for visualizations and `st.dataframe()` for results.
-- Always wrap your answer in valid Python code using triple backticks.
-- Plot with `plot_plotly`, not matplotlib.
+📌 RULES for your response:
+- You MUST USE Python's `Prophet` for all forecasting.
+- DO NOT suggest or mention other models like ARIMA, LSTM, sklearn, etc.
+- Data is already available in variable `df`.
+- Time column is `service_year_month`, and target is `paid_amount`.
+- Plot charts using `plot_plotly(model, forecast)` and show using `st.plotly_chart(fig)`.
+- Show forecasted results using `st.dataframe(forecast.tail())`.
+- Always wrap your code inside a Python block: ```python ... ```.
 
-Sample dataset:
+Dataset preview:
 {df.head().to_string()}
 """
 
             messages = [
-                {"role": "system", "content": context},
+                {"role": "system", "content": prompt},
                 {"role": "user", "content": user_question}
             ]
 
-            # Get response
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages
             )
-            content = response.choices[0].message.content
 
-            # Display GPT response
-            st.markdown("### 🧠 GPT-Generated Code")
+            content = response.choices[0].message.content
+            st.markdown("### 🧠 GPT-Generated Forecasting Code")
             st.code(content)
 
-            # Execute if it's valid Python code
-            code_match = re.search(r"```python\n(.*?)```", content, re.DOTALL)
-            if code_match:
-                code = code_match.group(1)
-
-                # Create global context
+            # Extract and execute the code
+            match = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+            if match:
+                code = match.group(1)
                 exec_globals = {
                     "pd": pd,
                     "df": df,
@@ -153,10 +150,18 @@ Sample dataset:
                     "plot_plotly": plot_plotly
                 }
 
-                # Run code safely
-                exec(code, exec_globals)
+                with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                    tmp.write(code.encode())
+                    tmp_path = tmp.name
+
+                output_buffer = StringIO()
+                with redirect_stdout(output_buffer):
+                    exec(code, exec_globals)
+
+                st.markdown("✅ Forecast executed successfully")
+                os.remove(tmp_path)
             else:
-                st.warning("⚠️ No Python code block found.")
+                st.warning("⚠️ No valid Python code found in AI response.")
 
         except Exception as e:
-            st.error(f"❌ Error: {e}")
+            st.error(f"❌ AI error: {e}")
