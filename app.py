@@ -22,6 +22,15 @@ client = AzureOpenAI(
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
+
+
+st.title("AI-Powered Claims Cost Predictor & Optimizer")
+
+
+# Initialize session state for chat history
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
 def load_data():
     try:
         df = pd.read_csv("Gen_AI_sample_data.csv")
@@ -123,54 +132,28 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figues as well"
-                messages = [
-                    {"role": "system", "content": context},
-                    {"role": "user", "content": user_question}
-                ]
-                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-                st.write(response.choices[0].message.content)
+                # Append user question to chat history
+                st.session_state.chat_history.append({"role": "user", "content": user_question})
 
-                content = response.choices[0].message.content
+                # Prepare messages for API call
+                messages = [{"role": "system", "content": "You are a helpful healthcare analyst."}]
+                messages.extend(st.session_state.chat_history)
 
-                st.markdown("### 🔧 GPT Output")
-                st.code(content)
+                # Call Azure OpenAI API with consistent parameters
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    temperature=0.0,
+                    seed=42
+                )
 
-                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
-                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+                assistant_reply = response.choices[0].message.content
 
-                if bash_code:
-                    bash_script = bash_code.group(1).strip()
-                    st.markdown("### 🐚 Executing Bash")
-                    try:
-                        bash_output = subprocess.check_output(
-                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
-                        )
-                        st.code(bash_output)
-                    except subprocess.CalledProcessError as e:
-                        st.error(f"Bash error:\n{e.output}")
-                else:
-                    st.info("No Bash code detected.")
+                # Append assistant reply to chat history
+                st.session_state.chat_history.append({"role": "assistant", "content": assistant_reply})
 
-                if python_code:
-                    python_script = python_code.group(1).strip()
-                    st.markdown("### 🐍 Executing Python")
-                    try:
-                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
-                            tmp.write(python_script.encode())
-                            tmp_path = tmp.name
+                # Display chat history
+                for
+::contentReference[oaicite:2]{index=2}
+ 
 
-                        output_buffer = StringIO()
-                        with redirect_stdout(output_buffer):
-                            exec(python_script, {})
-
-                        output = output_buffer.getvalue()
-                        st.code(output or "✅ Executed successfully")
-                    except Exception as e:
-                        st.error(f"Python error: {str(e)}")
-                    finally:
-                        os.remove(tmp_path)
-                else:
-                    st.info("No Python code detected.")
-            except Exception as e:
-                st.error(f"Error: {e}")
