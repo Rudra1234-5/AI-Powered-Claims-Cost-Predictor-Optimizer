@@ -39,15 +39,20 @@ def forecast_data_with_prophet(df, metric, forecast_period):
     try:
         # Prepare the data for Prophet
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
+        
+        # Initialize the Prophet model without the 'monthly_seasonality' argument
         model = Prophet()  # Initialize Prophet model
         model.fit(df_prophet)  # Fit the model
-        future = model.make_future_dataframe(periods=forecast_period, freq='M')  # Create future dataframe
-        forecast = model.predict(future)  # Predict for future months
         
-        # Plot the forecast
+        # Make future predictions (for the specified forecast_period)
+        future = model.make_future_dataframe(periods=forecast_period, freq='M')
+        forecast = model.predict(future)  # Get forecast
+        
+        # Plot the forecast using Plotly
         fig = plot_plotly(model, forecast)
         st.plotly_chart(fig)
         
+        # Display the forecast data for the future period
         st.subheader("Forecasted Data")
         st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
     except Exception as e:
