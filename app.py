@@ -46,10 +46,7 @@ def forecast_data(df, metric, period):
     model.fit(df_prophet)
     future = model.make_future_dataframe(periods=period, freq='M')
     forecast = model.predict(future)
-    fig = plot_plotly(model, forecast)
-    st.plotly_chart(fig)
-    st.subheader("📅 Forecasted Results")
-    st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(period))
+    return forecast
 
 # Main application logic
 
@@ -62,7 +59,7 @@ if sidebar_selection == "Explore Visuals":
 elif sidebar_selection == "Ask AI for Forecast":
     st.subheader("🤖 Ask Forecasting AI")
     user_input = st.text_area("What would you like to forecast?")
-    
+
     if st.button("Ask AI") and user_input:
         try:
             # Prompt GPT to only use Prophet and be user-friendly
@@ -87,7 +84,7 @@ Here's a preview of the dataset:
             ]
 
             # Show loading spinner while AI processes the forecast
-            with st.spinner('Processing your request, please wait...'):
+            with st.spinner('Generating forecast...'):
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages
@@ -116,6 +113,20 @@ Here's a preview of the dataset:
                         exec(code, {"df": df, "st": st, "Prophet": Prophet, "plot_plotly": plot_plotly})
 
                     os.remove(tmp_path)
+
+            # Start the actual forecast generation here:
+            st.subheader("🔮 Forecasting Analysis")
+            forecast = forecast_data(df, "paid_amount", 12)  # Forecast for 12 months ahead
+            st.write("Forecast generated successfully!")
+
+            # Plot forecast
+            fig = plot_plotly(forecast)
+            st.plotly_chart(fig)
+
+            # Display dynamic insights: The AI will generate this based on the forecast results
+            st.markdown("### 📊 Dynamic Insights:")
+            st.write("🔴 AI Insights: The AI will interpret the forecast and provide dynamic insights based on your question.")
+            st.write(content)
 
         except Exception as e:
             st.error(f"Error running AI forecast: {e}")
