@@ -26,10 +26,30 @@ client = AzureOpenAI(
 
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+from openai import AzureOpenAI
+from prophet import Prophet
+from prophet.plot import plot_plotly
+import plotly.graph_objects as go
+import subprocess
+import tempfile
+import os
+import sys
+from contextlib import redirect_stdout
+from io import StringIO
+import re
 
-# Initialize session state for chat history
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+st.set_page_config(page_title="AI-Powered Claims Cost Predictor & Optimizer", layout="wide")
+st.title("AI-Powered Claims Cost Predictor & Optimizer")
+
+# Initialize Azure OpenAI client
+client = AzureOpenAI(
+    api_key="YOUR_API_KEY",
+    api_version="2024-10-21",
+    azure_endpoint="https://YOUR_RESOURCE_NAME.openai.azure.com/"
+)
 
 def load_data():
     try:
@@ -132,28 +152,15 @@ elif sidebar_selection == "Ask Healthcare Predictions":
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                # Append user question to chat history
-                st.session_state.chat_history.append({"role": "user", "content": user_question})
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from prophet import Prophet. Use the file path for the csv as Gen_AI_sample_data.csv. Use st.pyplot(fig) to show figures as well."
+                messages = [
+                    {"role": "system", "content": context},
+                    {"role": "user", "content": user_question}
+                ]
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+                content = response.choices[0
+::contentReference[oaicite:0]{index=0}
+ 
 
-                # Prepare messages for API call
-                messages = [{"role": "system", "content": "You are a helpful healthcare analyst."}]
-                messages.extend(st.session_state.chat_history)
-
-                # Call Azure OpenAI API with consistent parameters
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages,
-                    temperature=0.0,
-                    seed=42
-                )
-
-                assistant_reply = response.choices[0].message.content
-
-                # Append assistant reply to chat history
-                st.session_state.chat_history.append({"role": "assistant", "content": assistant_reply})
-
-                # Display chat history
-                for
-::contentReference[oaicite:2]{index=2}
  
 
