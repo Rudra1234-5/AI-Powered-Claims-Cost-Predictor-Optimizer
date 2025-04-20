@@ -137,7 +137,7 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                     {"role": "user", "content": user_question}
                 ]
                 response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-                content = response.choices[0
+                content = response.choices[0]
 ::contentReference[oaicite:0]{index=0}
  
 
