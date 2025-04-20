@@ -1,190 +1,148 @@
 import pandas as pd
 import streamlit as st
-import plotly.express as px
 from openai import AzureOpenAI
 from prophet import Prophet
 from prophet.plot import plot_plotly
-import plotly.graph_objects as go
-import subprocess
+import plotly.express as px
+import re
 import tempfile
 import os
-import sys
 from contextlib import redirect_stdout
 from io import StringIO
-import re
 
-# Set the title for your Streamlit app
-st.title("AI-Powered Claims Cost Predictor & Optimizer")
+# Streamlit Title
+st.title("🧠 AI-Powered Claims Forecasting & Insights")
 
-# Initialize Azure OpenAI client
+# Azure OpenAI Client Setup (Your keys integrated)
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  # Use your correct API Key here
-    api_version="2024-10-21",  # Ensure that the correct API version is set
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
+    api_version="2024-10-21",
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
-# Function to load data
-def load_data():
-    try:
-        df = pd.read_csv("Gen_AI_sample_data.csv")  # Load your CSV file
-        df.columns = df.columns.str.lower().str.strip()  # Clean column names
-        df["service_year_month"] = pd.to_datetime(df["service_year_month"].astype(str))  # Ensure correct datetime format
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
-
-# Function to forecast data using Prophet
-def forecast_data_with_prophet(df, metric, forecast_period):
-    try:
-        # Prepare the data for Prophet
-        df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
-        
-        # Ensure 'ds' is in datetime format (if it's a period, convert it to timestamp)
-        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])  # This ensures the 'ds' column is in datetime format
-        
-        # Initialize the Prophet model
-        model = Prophet()  # Initialize Prophet model
-        model.fit(df_prophet)  # Fit the model
-        
-        # Make future predictions (for the specified forecast_period)
-        future = model.make_future_dataframe(periods=forecast_period, freq='M')
-        forecast = model.predict(future)  # Get forecast
-        
-        # Plot the forecast using Plotly
-        fig = plot_plotly(model, forecast)
-        st.plotly_chart(fig)
-        
-        # Display the forecast data for the future period
-        st.subheader("Forecasted Data")
-        st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
-    except Exception as e:
-        st.error(f"Error generating forecast: {e}")
-
 # Load data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("Gen_AI_sample_data.csv")
+    df.columns = df.columns.str.lower().str.strip()
+    df["service_year_month"] = pd.to_datetime(df["service_year_month"])
+    return df
+
 df = load_data()
 
-# Sidebar Navigation
-sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
-sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
+# Sidebar Options
+sidebar_options = ["Select Analysis Type", "Ask AI for Forecast"]
+selection = st.sidebar.selectbox("📌 Choose Action", sidebar_options)
 
-# Analysis Type Section
-if sidebar_selection == "Select Analysis Type":
-    prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
-        "Total Cost Over Time",
-        "Gender-wise Cost Distribution",
-        "Top Diagnosis by Cost",
-        "Average Monthly Cost Per Employee",
-        "Diagnosis Cost Trend Over Time",
-        "Employee-wise Cost Distribution"
+# Forecasting logic
+def forecast_data_with_prophet(df, metric, forecast_period):
+    try:
+        df_prophet = df[["service_year_month", metric]].copy()
+        df_prophet = df_prophet.rename(columns={"service_year_month": "ds", metric: "y"})
+        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])
+        df_prophet = df_prophet.groupby(df_prophet["ds"].dt.to_period("M").dt.to_timestamp()).sum().reset_index()
+
+        model = Prophet()
+        model.fit(df_prophet)
+
+        future = model.make_future_dataframe(periods=forecast_period, freq='M')
+        forecast = model.predict(future)
+
+        fig = plot_plotly(model, forecast)
+        st.plotly_chart(fig)
+
+        st.subheader("📈 Forecasted Data")
+        st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
+
+        # Show peak dynamically
+        peak = forecast.loc[forecast['yhat'].idxmax()]
+        st.success(f"🔍 Predicted peak: **{peak['ds'].strftime('%B %Y')}** → **{peak['yhat']:,.2f}**")
+
+    except Exception as e:
+        st.error(f"🚨 Error generating forecast: {e}")
+
+# Section 1: Static Forecast
+if selection == "Select Analysis Type":
+    analysis_type = st.sidebar.selectbox("📊 Choose Analysis", [
+        "Total Cost Over Time", "Gender-wise Cost", "Top Diagnosis by Cost"
     ])
 
     if not df.empty:
-        if prediction_type == "Total Cost Over Time":
-            df_grouped = df.groupby(df["service_year_month"].dt.to_period("M")).sum(numeric_only=True).reset_index()
-            df_grouped["service_year_month"] = df_grouped["service_year_month"].astype(str)
+        if analysis_type == "Total Cost Over Time":
+            df_grouped = df.groupby(df["service_year_month"].dt.to_period("M").dt.to_timestamp()).sum(numeric_only=True).reset_index()
             fig = px.line(df_grouped, x="service_year_month", y="paid_amount", title="Total Paid Amount Over Time")
             st.plotly_chart(fig)
 
-        elif prediction_type == "Gender-wise Cost Distribution":
+        elif analysis_type == "Gender-wise Cost":
             df_grouped = df.groupby("employee_gender")["paid_amount"].sum().reset_index()
-            fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost Distribution by Gender")
+            fig = px.pie(df_grouped, values="paid_amount", names="employee_gender", title="Cost by Gender")
             st.plotly_chart(fig)
 
-        elif prediction_type == "Top Diagnosis by Cost":
-            df_grouped = df.groupby("diagnosis_1_code_description")["paid_amount"].sum().sort_values(ascending=False).head(10).reset_index()
-            fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_1_code_description", orientation="h", title="Top 10 Diagnoses by Cost")
+        elif analysis_type == "Top Diagnosis by Cost":
+            df_grouped = df.groupby("diagnosis_1_code_description")["paid_amount"].sum().nlargest(10).reset_index()
+            fig = px.bar(df_grouped, x="paid_amount", y="diagnosis_1_code_description", orientation="h", title="Top Diagnoses")
             st.plotly_chart(fig)
 
-        elif prediction_type == "Average Monthly Cost Per Employee":
-            df["month"] = df["service_year_month"].dt.to_period("M")
-            df_grouped = df.groupby(["month", "employee_id"])["paid_amount"].sum().reset_index()
-            df_avg = df_grouped.groupby("month")["paid_amount"].mean().reset_index()
-            df_avg["month"] = df_avg["month"].astype(str)
-            fig = px.line(df_avg, x="month", y="paid_amount", title="Average Monthly Cost Per Employee")
-            st.plotly_chart(fig)
+# Section 2: AI Chat
+elif selection == "Ask AI for Forecast":
+    st.subheader("💬 Ask Healthcare AI")
+    user_question = st.text_area("Type your question (e.g., What is the predicted peak month for allowed amount in 2023?)")
 
-        elif prediction_type == "Diagnosis Cost Trend Over Time":
-            top_diagnoses = df["diagnosis_1_code_description"].value_counts().nlargest(5).index
-            df_filtered = df[df["diagnosis_1_code_description"].isin(top_diagnoses)]
-            df_filtered["month"] = df_filtered["service_year_month"].dt.to_period("M")
-            df_grouped = df_filtered.groupby(["month", "diagnosis_1_code_description"])["paid_amount"].sum().reset_index()
-            df_grouped["month"] = df_grouped["month"].astype(str)
-            fig = px.line(df_grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis Cost Trend Over Time")
-            st.plotly_chart(fig)
+    if st.button("Ask AI") and user_question:
+        try:
+            context = f"""
+You are a healthcare forecasting expert using Prophet.
+Only use `Prophet` from the `prophet` library — do NOT use fbprophet or fprophet.
+The dataset is already loaded as a Pandas DataFrame named `df`. Columns include service_year_month, paid_amount, allowed_amount, etc.
+Ensure all forecasting uses Prophet and output is shown using plot_plotly.
+Group dates using `.dt.to_period("M").dt.to_timestamp()` to avoid dtype errors.
+Do NOT explain mathematically — keep responses user-friendly.
+Use plotly chart for any visual output. Add a success message once output is ready.
+"""
 
-        elif prediction_type == "Employee-wise Cost Distribution":
-            df_grouped = df.groupby("employee_id")["paid_amount"].sum().sort_values(ascending=False).head(20).reset_index()
-            fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
-            st.plotly_chart(fig)
+            messages = [
+                {"role": "system", "content": context},
+                {"role": "user", "content": user_question}
+            ]
 
-# AI-Powered Prediction Section
-elif sidebar_selection == "Ask Healthcare Predictions":
-    st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages
+            )
 
-    if prediction_option == "Forecast Data using Prophet":
-        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
-        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
+            content = response.choices[0].message.content
+            st.markdown("### 📤 AI Response")
+            st.markdown(content)
 
-        if not df.empty:
-            st.write(df.head())
-            if st.button("Generate Forecast"):
-                forecast_data_with_prophet(df, metric, forecast_period)
+            # Show "View Code" button
+            if "```python" in content:
+                code_block = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+                if code_block:
+                    python_code = code_block.group(1)
+                    if st.button("👁 View Code"):
+                        st.code(python_code)
 
-    elif prediction_option == "Chat with AI":
-        st.subheader("Ask the AI Assistant")
-        user_question = st.text_area("Type your question about the data:")
-        if st.button("Ask") and user_question:
-            try:
-                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figures as well"
-                messages = [
-                    {"role": "system", "content": context},
-                    {"role": "user", "content": user_question}
-                ]
-                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-                st.write(response.choices[0].message.content)
-
-                content = response.choices[0].message.content
-
-                st.markdown("### 🔧 GPT Output")
-                st.code(content)
-
-                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
-                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
-
-                if bash_code:
-                    bash_script = bash_code.group(1).strip()
-                    st.markdown("### 🐚 Executing Bash")
+                    # Execute code safely
                     try:
-                        bash_output = subprocess.check_output(
-                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
-                        )
-                        st.code(bash_output)
-                    except subprocess.CalledProcessError as e:
-                        st.error(f"Bash error:\n{e.output}")
-                else:
-                    st.info("No Bash code detected.")
-
-                if python_code:
-                    python_script = python_code.group(1).strip()
-                    st.markdown("### 🐍 Executing Python")
-                    try:
+                        output_buffer = StringIO()
                         with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
-                            tmp.write(python_script.encode())
+                            tmp.write(python_code.encode())
                             tmp_path = tmp.name
 
-                        output_buffer = StringIO()
                         with redirect_stdout(output_buffer):
-                            exec(python_script, {})
+                            exec(python_code, globals())
 
                         output = output_buffer.getvalue()
-                        st.code(output or "✅ Executed successfully")
+                        if output:
+                            st.markdown("### 🧾 Output")
+                            st.code(output)
+                        else:
+                            st.success("✅ Forecast completed successfully.")
+
                     except Exception as e:
-                        st.error(f"Python error: {str(e)}")
+                        st.error(f"Execution error: {e}")
                     finally:
                         os.remove(tmp_path)
-                else:
-                    st.info("No Python code detected.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+
+        except Exception as e:
+            st.error(f"AI error: {e}")
