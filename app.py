@@ -18,9 +18,9 @@ st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  # Use your correct API Key here
+    api_key="your_api_key_here",  # Use your correct API Key here
     api_version="2024-10-21",  # Ensure that the correct API version is set
-    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"  # Ensure this is your correct Azure endpoint
+    azure_endpoint="your_endpoint_here"  # Ensure this is your correct Azure endpoint
 )
 
 # Function to load data
@@ -28,7 +28,7 @@ def load_data():
     try:
         df = pd.read_csv("Gen_AI_sample_data.csv")  # Load your CSV file
         df.columns = df.columns.str.lower().str.strip()  # Clean column names
-        df["service_year_month"] = pd.to_datetime(df["service_year_month"].astype(str))  # Ensure date format (convert Period to datetime)
+        df["service_year_month"] = pd.to_datetime(df["service_year_month"].astype(str))  # Ensure correct datetime format
         return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -41,7 +41,7 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
         
         # Ensure 'ds' is in datetime format (if it's a period, convert it to timestamp)
-        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])
+        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])  # This ensures the 'ds' column is in datetime format
         
         # Initialize the Prophet model
         model = Prophet()  # Initialize Prophet model
