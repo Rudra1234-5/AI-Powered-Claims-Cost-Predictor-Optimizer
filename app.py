@@ -1,30 +1,5 @@
-import pandas as pd
-import streamlit as st
-import plotly.express as px
-from openai import AzureOpenAI
-from prophet import Prophet
-from prophet.plot import plot_plotly
-import plotly.graph_objects as go
-import subprocess
-import tempfile
-import os
-import sys
-from contextlib import redirect_stdout
-from io import StringIO
-import re
-
-st.title("AI-Powered Claims Cost Predictor & Optimizer")
-
-# Initialize Azure OpenAI client
-client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
-    api_version="2024-10-21",
-    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
-)
 
 
-
-st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 import pandas as pd
 import streamlit as st
@@ -43,13 +18,17 @@ import re
 
 st.set_page_config(page_title="AI-Powered Claims Cost Predictor & Optimizer", layout="wide")
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
-
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="YOUR_API_KEY",
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
     api_version="2024-10-21",
-    azure_endpoint="https://YOUR_RESOURCE_NAME.openai.azure.com/"
+    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
+
+
+
+
+
 
 def load_data():
     try:
