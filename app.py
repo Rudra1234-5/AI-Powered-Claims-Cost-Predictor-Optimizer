@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from openai import AzureOpenAI
-from prophet import Prophet  # Correct import
+from prophet import Prophet
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 import subprocess
@@ -13,63 +13,54 @@ from contextlib import redirect_stdout
 from io import StringIO
 import re
 
-# Title of the app
+# Set the title for your Streamlit app
 st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="your-api-key-here",  # Use your actual API key
-    api_version="2024-10-21",
-    azure_endpoint="https://your-endpoint-here.cognitiveservices.azure.com/"
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  # Use your correct API Key here
+    api_version="2024-10-21",  # Ensure that the correct API version is set
+    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"  # Ensure this is your correct Azure endpoint
 )
 
-# Load Data Function
+# Function to load data
 def load_data():
     try:
-        df = pd.read_csv("Gen_AI_sample_data.csv")
-        df.columns = df.columns.str.lower().str.strip()
-        df["service_year_month"] = pd.to_datetime(df["service_year_month"])
+        df = pd.read_csv("Gen_AI_sample_data.csv")  # Load your CSV file
+        df.columns = df.columns.str.lower().str.strip()  # Clean column names
+        df["service_year_month"] = pd.to_datetime(df["service_year_month"])  # Ensure date format
         return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-# Forecasting Function using Prophet
+# Function to forecast data using Prophet
 def forecast_data_with_prophet(df, metric, forecast_period):
     try:
         # Prepare the data for Prophet
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
-        model = Prophet()
-        model.add_seasonality(name='monthly', period=30.5, fourier_order=8)  # Add monthly seasonality
-        model.fit(df_prophet)
-
-        # Make future DataFrame for forecasting
-        future = model.make_future_dataframe(periods=forecast_period, freq='M')
-        forecast = model.predict(future)
-
-        # Plot the forecast with Plotly
+        model = Prophet()  # Initialize Prophet model
+        model.fit(df_prophet)  # Fit the model
+        future = model.make_future_dataframe(periods=forecast_period, freq='M')  # Create future dataframe
+        forecast = model.predict(future)  # Predict for future months
+        
+        # Plot the forecast
         fig = plot_plotly(model, forecast)
         st.plotly_chart(fig)
         
-        # Display the forecasted data
         st.subheader("Forecasted Data")
         st.write(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_period))
-        
-        # Find and display the peak month
-        peak_month = forecast.loc[forecast['yhat'].idxmax(), ['ds', 'yhat']]
-        st.write(f"The predicted peak month for the allowed amount is {peak_month['ds'].strftime('%B %Y')} with an estimated value of {peak_month['yhat']:,.2f}.")
-        
     except Exception as e:
         st.error(f"Error generating forecast: {e}")
 
-# Load Data
+# Load data
 df = load_data()
 
 # Sidebar Navigation
-sidebar_options = ["Select Analysis Type", "Ask AI for Forecast"]
+sidebar_options = ["Select Analysis Type", "Ask Healthcare Predictions"]
 sidebar_selection = st.sidebar.selectbox("Select an option", sidebar_options)
 
-# Analysis Type Section (Dashboard)
+# Analysis Type Section
 if sidebar_selection == "Select Analysis Type":
     prediction_type = st.sidebar.selectbox("Select an AI-powered Prediction Type", [
         "Total Cost Over Time",
@@ -119,8 +110,8 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
-# AI-Powered Prediction Section (Chatbot)
-elif sidebar_selection == "Ask AI for Forecast":
+# AI-Powered Prediction Section
+elif sidebar_selection == "Ask Healthcare Predictions":
     st.subheader("Ask Healthcare Predictions")
     prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
 
@@ -138,7 +129,7 @@ elif sidebar_selection == "Ask AI for Forecast":
         user_question = st.text_area("Type your question about the data:")
         if st.button("Ask") and user_question:
             try:
-                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import Prophet. Use the file path for the csv as Gen_AI_sample_data csv. Use st.pyplot(fig) to show figures as well."
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figures as well"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
