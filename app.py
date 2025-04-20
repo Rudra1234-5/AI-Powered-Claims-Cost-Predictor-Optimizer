@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from openai import AzureOpenAI
-from prophet import Prophet
+from prophet import Prophet  # Correct import
 from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 import subprocess
@@ -18,9 +18,9 @@ st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
+    api_key="your-api-key-here",  # Use your actual API key
     api_version="2024-10-21",
-    azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
+    azure_endpoint="https://your-endpoint-here.cognitiveservices.azure.com/"
 )
 
 # Load Data Function
