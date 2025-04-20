@@ -51,56 +51,6 @@ def forecast_data(df, metric, period):
     st.subheader("📅 Forecasted Results")
     st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(period))
 
-# 📊 Static visual exploration
-if sidebar_selection == "Explore Visuals":
-    analysis = st.sidebar.selectbox("Select Visualization", [
-        "Total Cost Over Time",
-        "Gender-wise Cost Distribution",
-        "Top Diagnosis by Cost",
-        "Average Monthly Cost Per Employee",
-        "Diagnosis Cost Trend",
-        "Top 20 Employee Costs"
-    ])
-
-    if not df.empty:
-        if analysis == "Total Cost Over Time":
-            grouped = df.groupby(df["service_year_month"].dt.to_period("M")).sum(numeric_only=True).reset_index()
-            grouped["service_year_month"] = grouped["service_year_month"].astype(str)
-            fig = px.line(grouped, x="service_year_month", y="paid_amount", title="Total Cost Over Time")
-            st.plotly_chart(fig)
-
-        elif analysis == "Gender-wise Cost Distribution":
-            grouped = df.groupby("employee_gender")["paid_amount"].sum().reset_index()
-            fig = px.pie(grouped, values="paid_amount", names="employee_gender", title="Cost by Gender")
-            st.plotly_chart(fig)
-
-        elif analysis == "Top Diagnosis by Cost":
-            grouped = df.groupby("diagnosis_1_code_description")["paid_amount"].sum().nlargest(10).reset_index()
-            fig = px.bar(grouped, x="paid_amount", y="diagnosis_1_code_description", orientation="h", title="Top 10 Diagnoses by Cost")
-            st.plotly_chart(fig)
-
-        elif analysis == "Average Monthly Cost Per Employee":
-            df["month"] = df["service_year_month"].dt.to_period("M")
-            grouped = df.groupby(["month", "employee_id"])["paid_amount"].sum().reset_index()
-            avg = grouped.groupby("month")["paid_amount"].mean().reset_index()
-            avg["month"] = avg["month"].astype(str)
-            fig = px.line(avg, x="month", y="paid_amount", title="Avg Monthly Cost Per Employee")
-            st.plotly_chart(fig)
-
-        elif analysis == "Diagnosis Cost Trend":
-            top_diag = df["diagnosis_1_code_description"].value_counts().nlargest(5).index
-            filtered = df[df["diagnosis_1_code_description"].isin(top_diag)]
-            filtered["month"] = filtered["service_year_month"].dt.to_period("M")
-            grouped = filtered.groupby(["month", "diagnosis_1_code_description"])["paid_amount"].sum().reset_index()
-            grouped["month"] = grouped["month"].astype(str)
-            fig = px.line(grouped, x="month", y="paid_amount", color="diagnosis_1_code_description", title="Diagnosis Trends")
-            st.plotly_chart(fig)
-
-        elif analysis == "Top 20 Employee Costs":
-            grouped = df.groupby("employee_id")["paid_amount"].sum().nlargest(20).reset_index()
-            fig = px.bar(grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Cost")
-            st.plotly_chart(fig)
-
 # 🤖 AI Forecasting with Prophet only
 elif sidebar_selection == "Ask AI for Forecast":
     st.subheader("🤖 Ask Forecasting AI")
@@ -129,10 +79,12 @@ Here's a preview of the dataset:
                 {"role": "user", "content": user_input}
             ]
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages
-            )
+            # Show loading spinner while AI processes the forecast
+            with st.spinner('Processing your request, please wait...'):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages
+                )
 
             content = response.choices[0].message.content
             st.markdown("### 🧠 AI Forecast Summary")
@@ -160,3 +112,9 @@ Here's a preview of the dataset:
 
         except Exception as e:
             st.error(f"Error running AI forecast: {e}")
+
+# Indicate that data loading or processing is completed
+if df.empty:
+    st.warning("No data available to process.")
+else:
+    st.success("Data loaded successfully!")
