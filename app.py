@@ -28,7 +28,7 @@ def load_data():
     try:
         df = pd.read_csv("Gen_AI_sample_data.csv")  # Load your CSV file
         df.columns = df.columns.str.lower().str.strip()  # Clean column names
-        df["service_year_month"] = pd.to_datetime(df["service_year_month"])  # Ensure date format
+        df["service_year_month"] = pd.to_datetime(df["service_year_month"].astype(str))  # Ensure date format (convert Period to datetime)
         return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -40,10 +40,10 @@ def forecast_data_with_prophet(df, metric, forecast_period):
         # Prepare the data for Prophet
         df_prophet = df[["service_year_month", metric]].rename(columns={"service_year_month": "ds", metric: "y"})
         
-        # Convert PeriodDtype to Timestamp
-        df_prophet["ds"] = df_prophet["ds"].dt.to_timestamp()  # Convert period to timestamp
+        # Ensure 'ds' is in datetime format (if it's a period, convert it to timestamp)
+        df_prophet["ds"] = pd.to_datetime(df_prophet["ds"])
         
-        # Initialize the Prophet model without the 'monthly_seasonality' argument
+        # Initialize the Prophet model
         model = Prophet()  # Initialize Prophet model
         model.fit(df_prophet)  # Fit the model
         
