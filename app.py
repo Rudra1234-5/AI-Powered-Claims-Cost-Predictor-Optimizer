@@ -18,8 +18,8 @@ st.title("AI-Powered Claims Cost Predictor & Optimizer")
 
 # Initialize Azure OpenAI client
 client = AzureOpenAI(
-    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",
-    api_version="2024-10-21",
+    api_key="8B86xeO8aV6pSZ9W3OqjihyeStsSxe06UIY0ku0RsPivUBIhvISnJQQJ99BDACHYHv6XJ3w3AAAAACOGf8nS",  # Use your correct API Key here
+    api_version="2024-10-21",  # Ensure that the correct API version is set
     azure_endpoint="https://globa-m99lmcki-eastus2.cognitiveservices.azure.com/"
 )
 
