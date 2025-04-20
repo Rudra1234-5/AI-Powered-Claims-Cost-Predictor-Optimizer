@@ -51,7 +51,14 @@ def forecast_data(df, metric, period):
     st.subheader("📅 Forecasted Results")
     st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(period))
 
-# 🤖 AI Forecasting with Prophet only
+# Main application logic
+
+# Explore Visuals Section
+if sidebar_selection == "Explore Visuals":
+    # Add your analysis/visualization code here (like plotting total cost, gender-wise cost, etc.)
+    st.write("Explore different visualizations based on the data.")
+
+# AI Forecasting Section
 elif sidebar_selection == "Ask AI for Forecast":
     st.subheader("🤖 Ask Forecasting AI")
     user_input = st.text_area("What would you like to forecast?")
@@ -112,9 +119,3 @@ Here's a preview of the dataset:
 
         except Exception as e:
             st.error(f"Error running AI forecast: {e}")
-
-# Indicate that data loading or processing is completed
-if df.empty:
-    st.warning("No data available to process.")
-else:
-    st.success("Data loaded successfully!")
