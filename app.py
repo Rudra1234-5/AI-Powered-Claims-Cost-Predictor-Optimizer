@@ -120,17 +120,6 @@ if sidebar_selection == "Select Analysis Type":
 
 # AI-Powered Section
 elif sidebar_selection == "Ask Healthcare Predictions":
-    st.subheader("Ask Healthcare Predictions")
-    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
-
-    if prediction_option == "Forecast Data using Prophet":
-        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
-        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
-
-        if not df.empty and st.button("Generate Forecast"):
-            forecast_data_with_prophet(df, metric, forecast_period)
-
-    elif prediction_option == "Chat with AI":
     st.subheader("Ask the AI Assistant")
     user_question = st.text_area("Type your question about the data:")
 
