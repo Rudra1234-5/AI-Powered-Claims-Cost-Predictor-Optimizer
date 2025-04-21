@@ -224,7 +224,10 @@ elif sidebar_selection == "Ask Healthcare Predictions":
                    - Do NOT use fbprophet; assume it is not installed
                    - Use 'Gen_AI_sample_data.csv' as the file path if data needs to be reloaded
                    - For visualization, use st.plotly_chart(fig) or st.pyplot(fig)
-                   """
+                   - When aggregating data (e.g., sum, mean), always filter to numeric columns using:
+                     df.select_dtypes(include='number') or use:df.sum(numeric_only=True)
+                   - Avoid summing datetime columns (e.g., datetime64 types). """
+                
                 messages = [
 
                     {"role": "system", "content": context},
