@@ -131,56 +131,62 @@ elif sidebar_selection == "Ask Healthcare Predictions":
             forecast_data_with_prophet(df, metric, forecast_period)
 
     elif prediction_option == "Chat with AI":
-        st.subheader("Ask the AI Assistant")
-        user_question = st.text_area("Type your question about the data:")
-        if st.button("Ask") and user_question:
-            try:
-                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}"
-                messages = [
-                    {"role": "system", "content": context},
-                    {"role": "user", "content": user_question}
-                ]
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages,
-                    temperature=0  # Ensures consistent answers
-                )
-                content = response.choices[0].message.content
-                st.markdown("### 🤖 GPT Response")
-                st.write(content)
+    st.subheader("Ask the AI Assistant")
+    user_question = st.text_area("Type your question about the data:")
 
-                # Only allow GPT for code help, not forecasting
-                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
-                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+    if st.button("Ask") and user_question:
+        try:
+            # Refined context that ensures ChatGPT uses Prophet
+            context = (
+                "You are a data analyst assistant. "
+                "You always use the Prophet library from `prophet` for any forecasting tasks. "
+                "You have access to a pandas DataFrame called `df` that contains healthcare data "
+                "with columns like `service_year_month`, `allowed_amount`, and `paid_amount`. "
+                "Use the Prophet model to forecast future values or analyze trends. "
+                "Always provide numeric answers, never generic explanations. "
+                "Use data from the 'Gen_AI_sample_data.csv'. "
+                "The date column is `service_year_month`. Forecasting must be done with Prophet, "
+                "and output should be clear and calculated."
+            )
 
-                if bash_code:
-                    bash_script = bash_code.group(1).strip()
-                    st.markdown("### 🐚 Executing Bash")
-                    try:
-                        bash_output = subprocess.check_output(bash_script, shell=True, stderr=subprocess.STDOUT, text=True)
-                        st.code(bash_output)
-                    except subprocess.CalledProcessError as e:
-                        st.error(f"Bash error:\n{e.output}")
-                else:
-                    st.info("No Bash code detected.")
+            # Let GPT generate Python code using Prophet
+            messages = [
+                {"role": "system", "content": context},
+                {"role": "user", "content": user_question}
+            ]
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0  # Ensures consistency
+            )
+            content = response.choices[0].message.content
 
-                if python_code:
-                    python_script = python_code.group(1).strip()
-                    st.markdown("### 🐍 Executing Python")
-                    try:
-                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
-                            tmp.write(python_script.encode())
-                            tmp_path = tmp.name
-                        output_buffer = StringIO()
-                        with redirect_stdout(output_buffer):
-                            exec(python_script, {})
-                        output = output_buffer.getvalue()
-                        st.code(output or "✅ Executed successfully")
-                    except Exception as e:
-                        st.error(f"Python error: {str(e)}")
-                    finally:
-                        os.remove(tmp_path)
-                else:
-                    st.info("No Python code detected.")
-            except Exception as e:
-                st.error(f"Error: {e}")
+            st.markdown("### 🤖 GPT Response")
+            st.code(content)
+
+            # Extract and execute Python code
+            python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+            if python_code:
+                python_script = python_code.group(1).strip()
+
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                        tmp.write(python_script.encode())
+                        tmp_path = tmp.name
+
+                    output_buffer = StringIO()
+                    with redirect_stdout(output_buffer):
+                        exec(python_script, {"df": df})  # Pass your dataframe into the scope
+
+                    output = output_buffer.getvalue()
+                    st.markdown("### ✅ Output")
+                    st.code(output or "Successfully executed.")
+                except Exception as e:
+                    st.error(f"Execution error: {e}")
+                finally:
+                    os.remove(tmp_path)
+            else:
+                st.info("No Python code found in GPT's response.")
+
+        except Exception as e:
+            st.error(f"Error: {e}")
