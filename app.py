@@ -26,7 +26,7 @@ from io import StringIO
 
 import re
  
-st.title("AI-Powered Claims Cost Predictor & Optimizer")
+st.title("HealthSight AI")
  
 # Initialize Azure OpenAI client
 
