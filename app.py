@@ -214,12 +214,17 @@ elif sidebar_selection == "Ask Healthcare Predictions":
 
             try:
 
-                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}.
-                 Use the following conventions when forecasting:
-                 - Use Prophet with: from prophet import Prophet
-                 - Do NOT use fbprophet; assume it is not installed
-                 - Use 'Gen_AI_sample_data.csv' as the file path if data needs to be reloaded
-                 - For visualization, use st.plotly_chart(fig) or st.pyplot(fig)
+                context = f"""
+                   You are a helpful healthcare analyst. Here's a healthcare dataset summary:
+                   
+                   {df.head().to_string()}.
+                   
+                   Use the following conventions when forecasting:
+                   - Use Prophet with: from prophet import Prophet
+                   - Do NOT use fbprophet; assume it is not installed
+                   - Use 'Gen_AI_sample_data.csv' as the file path if data needs to be reloaded
+                   - For visualization, use st.plotly_chart(fig) or st.pyplot(fig)
+                   """
                 messages = [
 
                     {"role": "system", "content": context},
