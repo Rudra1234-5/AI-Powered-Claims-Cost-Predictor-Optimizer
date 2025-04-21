@@ -85,64 +85,73 @@ if sidebar_selection == "Select Analysis Type":
             fig = px.bar(df_grouped, x="employee_id", y="paid_amount", title="Top 20 Employees by Total Cost")
             st.plotly_chart(fig)
 
-# --- Section: Chat with AI ---
-elif sidebar_selection == "Ask AI for Forecast":
-    st.header("💬 AI Forecast Assistant")
-    user_question = st.text_area("Ask a forecasting question related to the data 👇", height=100)
-
-    if st.button("🔍 Ask AI"):
-        with st.spinner("Generating prediction..."):
+# AI-Powered Prediction Section
+elif sidebar_selection == "Ask Healthcare Predictions":
+    st.subheader("Ask Healthcare Predictions")
+    prediction_option = st.selectbox("Select an AI-powered Prediction Type", ["Forecast Data using Prophet", "Chat with AI"])
+ 
+    if prediction_option == "Forecast Data using Prophet":
+        metric = st.selectbox("Select Metric to Forecast", ["paid_amount"])
+        forecast_period = st.number_input("Forecast Period (months)", min_value=1, max_value=12, value=3)
+ 
+        if not df.empty:
+            st.write(df.head())
+            if st.button("Generate Forecast"):
+                forecast_data_with_prophet(df, metric, forecast_period)
+ 
+    elif prediction_option == "Chat with AI":
+        st.subheader("Ask the AI Assistant")
+        user_question = st.text_area("Type your question about the data:")
+        if st.button("Ask") and user_question:
             try:
-                context = f"""
-You are a healthcare forecasting expert. Always use Prophet for predictions based on the user's CSV data.
-The file name is: 'Gen_AI_sample_data.csv'. Use the column 'service_year_month' for time and either 'allowed_amount' or 'paid_amount' for values.
-Always use `plot_plotly(model, forecast)` to display forecasts.
-Avoid math-heavy or hardcoded responses — keep it friendly and dynamic.
-Here is a sample of the dataset:
-{df.head(2).to_string()}
-"""
-
+                context = f"You are a helpful healthcare analyst. Here's a healthcare dataset summary:\n\n{df.head().to_string()}. If asked for future Data Forecast using Prophet, use from Prophet import prophet. Use the file path for the csv as Gen_AI_sample_data csv.Use st.pyplot(fig) to show figues as well"
                 messages = [
                     {"role": "system", "content": context},
                     {"role": "user", "content": user_question}
                 ]
-
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages
-                )
-
-                ai_reply = response.choices[0].message.content
-                st.markdown("### 🤖 AI Response")
-                st.write(ai_reply)
-
-                # Check for Python code block
-                code_match = re.search(r"```python\n(.*?)```", ai_reply, re.DOTALL)
-                if code_match:
-                    python_code = code_match.group(1)
-
-                    with st.expander("👁️ View Generated Code"):
-                        st.code(python_code)
-
-                    with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp_file:
-                        tmp_file.write(python_code.encode())
-                        temp_file_path = tmp_file.name
-
-                    output_buffer = StringIO()
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+                st.write(response.choices[0].message.content)
+ 
+                content = response.choices[0].message.content
+ 
+                st.markdown("### 🔧 GPT Output")
+                st.code(content)
+ 
+                bash_code = re.search(r"```bash\n(.*?)```", content, re.DOTALL)
+                python_code = re.search(r"```python\n(.*?)```", content, re.DOTALL)
+ 
+                if bash_code:
+                    bash_script = bash_code.group(1).strip()
+                    st.markdown("### 🐚 Executing Bash")
                     try:
-                        with redirect_stdout(output_buffer):
-                            exec(python_code, globals())
-                        output_result = output_buffer.getvalue()
-                        if output_result:
-                            st.text_area("📤 Code Output", output_result, height=200)
-                        else:
-                            st.success("✅ Forecast generated successfully.")
-                    except Exception as exec_error:
-                        st.error(f"Execution error: {exec_error}")
-                    finally:
-                        os.remove(temp_file_path)
+                        bash_output = subprocess.check_output(
+                            bash_script, shell=True, stderr=subprocess.STDOUT, text=True
+                        )
+                        st.code(bash_output)
+                    except subprocess.CalledProcessError as e:
+                        st.error(f"Bash error:\n{e.output}")
                 else:
-                    st.info("⚠️ No code was detected in AI response.")
-
-            except Exception as api_error:
-                st.error(f"Error communicating with OpenAI: {api_error}")
+                    st.info("No Bash code detected.")
+ 
+                if python_code:
+                    python_script = python_code.group(1).strip()
+                    st.markdown("### 🐍 Executing Python")
+                    try:
+                        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmp:
+                            tmp.write(python_script.encode())
+                            tmp_path = tmp.name
+ 
+                        output_buffer = StringIO()
+                        with redirect_stdout(output_buffer):
+                            exec(python_script, {})
+ 
+                        output = output_buffer.getvalue()
+                        st.code(output or "✅ Executed successfully")
+                    except Exception as e:
+                        st.error(f"Python error: {str(e)}")
+                    finally:
+                        os.remove(tmp_path)
+                else:
+                    st.info("No Python code detected.")
+            except Exception as e:
+                st.error(f"Error: {e}")
